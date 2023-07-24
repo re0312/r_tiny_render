@@ -1,0 +1,21 @@
+[package]
+name = "r_tinny_render"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+crate-type = ["cdylib"]
+
+
+[dependencies]
+cfg-if = "1"
+
+wasm-bindgen = "0.2.87"
+js-sys = "0.3.64"
+console_error_panic_hook = { version = "0.1.7", optional = true }
+winit = { version = "0.28.6" }
+web-sys = { version = "0.3.64", features = ["Document", "Window", "Element"] }
+
+
+glam = { version = "0.24", features = ["bytemuck"] }
