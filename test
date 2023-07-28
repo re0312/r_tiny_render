@@ -1,0 +1,19 @@
+const ctx = canvas.getContext('2d');
+
+const WIDTH = 256;
+const HEIGHT = 256;
+
+const arrayBuffer = new ArrayBuffer(WIDTH * HEIGHT * 4);
+const pixels = new Uint8ClampedArray(arrayBuffer);
+for (let y = 0; y < HEIGHT; y++) {
+  for (let x = 0; x < WIDTH; x++) {
+    const i = (y*WIDTH + x) * 4;
+    pixels[i  ] = x;   // red
+    pixels[i+1] = y;   // green
+    pixels[i+2] = 0;   // blue
+    pixels[i+3] = 255; // alpha
+  }
+}
+
+const imageData = new ImageData(pixels, WIDTH, HEIGHT);
+ctx.putImageData(imageData, 0, 0);

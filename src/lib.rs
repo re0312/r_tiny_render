@@ -1,5 +1,9 @@
 pub mod math;
 pub mod color;
+pub mod loader;
+pub mod constant;
+pub mod render;
+pub mod primitives;
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;

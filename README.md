@@ -12,6 +12,8 @@ Todo:
 
 - [x] Triangle Rasterization
 
+- [x] MVP Transform
+
 - [x] Culling
 
 - [x] Vertex and Fragment Shader
@@ -27,6 +29,8 @@ Todo:
 reference:
 
 https://github.com/ssloy/tinyrenderer/wiki/Lesson-0:-getting-started
+
+https://github.com/NightsWatchGames/tiny-renderer
 
 https://github.com/skywind3000/RenderHelp
 
