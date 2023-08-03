@@ -1,6 +1,5 @@
 use std::ops::{Add, Mul, Neg, Sub};
 
-//// 二维向量
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Vec2 {
     pub x: f32,
@@ -32,6 +31,9 @@ impl Vec2 {
     // 长度
     pub fn length(self) -> f32 {
         self.dot(self).sqrt()
+    }
+    pub fn length_squared(self) -> f32 {
+        self.dot(self)
     }
     // 归一化
     pub fn normalize(self) -> Self {
@@ -89,7 +91,6 @@ impl From<[f32; 2]> for Vec2 {
     }
 }
 
-//// 三维向量
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Vec3 {
     pub x: f32,
@@ -114,11 +115,9 @@ impl Vec3 {
     pub const fn splat(v: f32) -> Self {
         Self { x: v, y: v, z: v }
     }
-    // 点乘
     pub fn dot(self, rhs: Self) -> f32 {
         self.x * rhs.x + self.y * rhs.y + self.z * rhs.z
     }
-    // 叉乘
     pub fn cross(self, rhs: Self) -> Self {
         Self {
             x: self.y * rhs.z - self.z * rhs.y,
@@ -126,16 +125,31 @@ impl Vec3 {
             z: self.x * rhs.y - self.y * rhs.x,
         }
     }
-    // 长度
     pub fn length(self) -> f32 {
         self.dot(self).sqrt()
     }
-    // 归一化
     pub fn normalize(self) -> Self {
         let normalized = self.mul(self.length().recip());
         assert!(normalized.is_finite());
         normalized
     }
+    pub fn try_normalize(self) -> Option<Self> {
+        let rcp = self.length().recip();
+        if rcp.is_finite() && rcp > 0.0 {
+            Some(self * rcp)
+        } else {
+            None
+        }
+    }
+
+    // 求任意一个单位正交向量
+    pub fn any_orthonormal_vector(&self) -> Self {
+        let sign = f32::signum(self.z);
+        let a = -1.0 / (sign + self.z);
+        let b = self.x * self.y * a;
+        Self::new(b, sign + self.y * self.y * a, -self.y)
+    }
+
     pub fn is_finite(self) -> bool {
         self.x.is_finite() && self.y.is_finite() && self.z.is_finite()
     }
@@ -147,6 +161,15 @@ impl Vec3 {
     }
     pub fn truncate(self) -> Vec2 {
         Vec2::new(self.x, self.y)
+    }
+
+    // 倒数
+    pub fn recip(self) -> Self {
+        Self {
+            x: 1.0 / self.x,
+            y: 1.0 / self.y,
+            z: 1.0 / self.z,
+        }
     }
 }
 impl Add<Vec3> for Vec3 {
@@ -176,6 +199,16 @@ impl Mul<f32> for Vec3 {
             x: self.x * rhs,
             y: self.y * rhs,
             z: self.z * rhs,
+        }
+    }
+}
+impl Mul<Vec3> for Vec3 {
+    type Output = Self;
+    fn mul(self, rhs: Self) -> Self {
+        Self {
+            x: self.x.mul(rhs.x),
+            y: self.y.mul(rhs.y),
+            z: self.z.mul(rhs.z),
         }
     }
 }
@@ -210,7 +243,6 @@ impl From<[f32; 3]> for Vec3 {
     }
 }
 
-//// 四维向量
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Vec4 {
     pub x: f32,
@@ -284,6 +316,12 @@ impl Vec4 {
             z: self.z,
         }
     }
+    pub fn xy(self) -> Vec2 {
+        Vec2 {
+            x: self.x,
+            y: self.y,
+        }
+    }
 }
 impl Add<Vec4> for Vec4 {
     type Output = Self;
@@ -324,20 +362,18 @@ impl From<[f32; 4]> for Vec4 {
     }
 }
 
-//// 2x2按列存储矩阵
+// 矩阵为列存储
 pub struct Mat2 {
     pub x_axis: Vec2,
     pub y_axis: Vec2,
 }
 impl Mat2 {
     pub const ZERO: Self = Self::from_cols(Vec2::ZERO, Vec2::ZERO);
-    // 单位矩阵
     pub const IDENTITY: Self = Self::from_cols(Vec2::X, Vec2::Y);
 
     pub const fn from_cols(x_axis: Vec2, y_axis: Vec2) -> Self {
         Self { x_axis, y_axis }
     }
-    // 转置
     pub fn transpose(self) -> Self {
         Self {
             x_axis: Vec2 {
@@ -350,7 +386,6 @@ impl Mat2 {
             },
         }
     }
-    // TODO 逆矩阵
     pub fn inverse(self) -> Self {
         todo!()
     }
@@ -392,7 +427,6 @@ impl Mul<Vec2> for Mat2 {
     }
 }
 
-//// 3x3按列存储矩阵
 #[derive(Clone, Copy, Debug)]
 pub struct Mat3 {
     pub x_axis: Vec3,
@@ -487,7 +521,6 @@ impl Mul<Mat3> for Mat3 {
     }
 }
 
-//// 4x4按列存储矩阵
 #[derive(Debug, Clone, Copy)]
 pub struct Mat4 {
     pub x_axis: Vec4,
@@ -560,6 +593,41 @@ impl Mat4 {
     pub fn inverse(self) -> Self {
         todo!()
     }
+
+    pub(crate) fn from_scale_rotation_translation(
+        scale: Vec3,
+        rotation: Quat,
+        translation: Vec3,
+    ) -> Mat4 {
+        let (x_axis, y_axis, z_axis) = Self::quat_to_axes(rotation);
+        Self::from_cols(
+            x_axis.mul(scale.x),
+            y_axis.mul(scale.y),
+            z_axis.mul(scale.z),
+            translation.extend(1.0),
+        )
+    }
+
+    fn quat_to_axes(rotation: Quat) -> (Vec4, Vec4, Vec4) {
+        let (x, y, z, w) = rotation.into();
+        let x2 = x + x;
+        let y2 = y + y;
+        let z2 = z + z;
+        let xx = x * x2;
+        let xy = x * y2;
+        let xz = x * z2;
+        let yy = y * y2;
+        let yz = y * z2;
+        let zz = z * z2;
+        let wx = w * x2;
+        let wy = w * y2;
+        let wz = w * z2;
+
+        let x_axis = Vec4::new(1.0 - (yy + zz), xy + wz, xz - wy, 0.0);
+        let y_axis = Vec4::new(xy - wz, 1.0 - (xx + zz), yz + wx, 0.0);
+        let z_axis = Vec4::new(xz + wy, yz - wx, 1.0 - (xx + yy), 0.0);
+        (x_axis, y_axis, z_axis)
+    }
 }
 impl Add<Mat4> for Mat4 {
     type Output = Self;
@@ -628,9 +696,8 @@ impl Mul<Mat4> for Mat4 {
         }
     }
 }
-
-//// 四元数
 #[derive(Copy, Clone, Debug)]
+// 四元数 用来衡量3维空间中的旋转角度
 pub struct Quat {
     pub x: f32,
     pub y: f32,
@@ -760,6 +827,10 @@ impl Quat {
     pub fn is_normalized(self) -> bool {
         Vec4::new(self.x, self.y, self.z, self.w).is_normalized()
     }
+
+    fn from_rotation_axes(xyz_1: Vec3, xyz_2: Vec3, xyz_3: Vec3) -> Quat {
+        todo!()
+    }
 }
 impl Add<Quat> for Quat {
     type Output = Self;
@@ -812,5 +883,18 @@ impl Mul<Vec3> for Quat {
         let self_inv = self.inverse();
         let v = self * q * self_inv;
         Vec3::new(v.x, v.y, v.z)
+    }
+}
+
+impl From<Vec4> for (f32, f32, f32, f32) {
+    fn from(value: Vec4) -> Self {
+        return (value.x, value.y, value.z, value.w);
+    }
+}
+
+impl From<Quat> for (f32, f32, f32, f32) {
+    #[inline]
+    fn from(q: Quat) -> Self {
+        Vec4::new(q.x, q.y, q.z, q.w).into()
     }
 }

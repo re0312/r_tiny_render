@@ -1,115 +1,166 @@
-use r_tiny_render::{
-    color::Color,
-    constant::{HEIGHT, WIDTH},
-    loader::{load_gltf, load_obj},
-    math::Vec4,
-    render::{draw_line, draw_triangle, Vertex},
-};
+mod camera;
+mod color;
+mod loader;
+mod material;
+mod math;
+mod mesh;
+mod render;
+mod transform;
 
-fn test_line() {
-    let mut buffer: Vec<u8> = vec![0; (WIDTH * HEIGHT * 3) as usize];
-    draw_line(50, 160, 70, 80, &mut buffer, Color::BLUE);
-    draw_line(0, 0, 10, 300, &mut buffer, Color::BLUE);
-    draw_line(300, 200, 100, 300, &mut buffer, Color::BLUE);
-    draw_line(300, 300, 100, 300, &mut buffer, Color::BLUE);
-    draw_line(246, 383, 229, 388, &mut buffer, Color::BLUE);
-    draw_line(399, 400, 200, 200, &mut buffer, Color::BLUE);
-    image::save_buffer("image.png", &buffer, WIDTH, HEIGHT, image::ColorType::Rgb8).unwrap();
-}
+#[cfg(test)]
+mod tests {
+    use crate::camera::{Camera, Viewport};
+    use crate::color::Color;
+    use crate::loader::load_gltf;
+    use crate::math::{Mat4, Vec3, Vec4};
+    use crate::mesh::Vertex;
+    use crate::render::Renderer;
+    use crate::transform::Transform;
 
-fn test_mesh() {
-    let mut buffer: Vec<u8> = vec![0; (WIDTH * HEIGHT * 3) as usize];
-    let meshs = load_gltf("./assets/sphere/sphere.gltf");
-    println!("meshs length:{}", meshs.len());
-    let scale = 2.;
-    for i in 0..meshs.len() / 3 {
-        let x1 = meshs[i * 3].x;
-        let y1 = meshs[i * 3].y;
-
-        let x2 = meshs[i * 3 + 1].x;
-        let y2 = meshs[i * 3 + 1].y;
-
-        let x3 = meshs[i * 3 + 2].x;
-        let y3 = meshs[i * 3 + 2].y;
-
-        let x1 = ((x1 + 1.) / scale * WIDTH as f32 / 2 as f32) as u32;
-        let y1 = ((y1 + 1.) / scale * HEIGHT as f32 / 2 as f32) as u32;
-        let x2 = ((x2 + 1.) / scale * WIDTH as f32 / 2 as f32) as u32;
-        let y2 = ((y2 + 1.) / scale * HEIGHT as f32 / 2 as f32) as u32;
-        let x3 = ((x3 + 1.) / scale * WIDTH as f32 / 2 as f32) as u32;
-        let y3 = ((y3 + 1.) / scale * HEIGHT as f32 / 2 as f32) as u32;
-        draw_line(
-            x1 as i32,
-            y1 as i32,
-            x2 as i32,
-            y2 as i32,
-            &mut buffer,
-            Color::WHITE,
-        );
-
-        draw_line(
-            x2 as i32,
-            y2 as i32,
-            x3 as i32,
-            y3 as i32,
-            &mut buffer,
-            Color::RED,
-        );
-
-        draw_line(
-            x3 as i32,
-            y3 as i32,
-            x1 as i32,
-            y1 as i32,
-            &mut buffer,
-            Color::BLUE,
-        );
+    fn create_render() -> Renderer {
+        let camera = Camera {
+            viewport: Viewport::new((0., 0.).into(), (400., 400.).into()),
+            ..Default::default()
+        };
+        Renderer::new().with_camera(camera)
     }
-    image::save_buffer("image.png", &buffer, WIDTH, HEIGHT, image::ColorType::Rgb8).unwrap();
-}
+    #[test]
+    fn test_line() {
+        let mut renderer = create_render();
+        let lines = [
+            ((50., 160.).into(), (70., 80.).into()),
+            ((0., 0.).into(), (10., 300.).into()),
+            ((300., 200.).into(), (100., 300.).into()),
+            ((300., 300.).into(), (100., 300.).into()),
+            ((246., 383.).into(), (229., 388.).into()),
+            ((399., 400.).into(), (200., 200.).into()),
+            ((3909., 4000.).into(), (2000., 2000.).into()),
+        ];
+        for line in lines {
+            renderer.draw_line(line);
+        }
+        image::save_buffer(
+            "image_line.png",
+            &renderer.frame_buffer,
+            renderer.camera.viewport.physical_size.x as u32,
+            renderer.camera.viewport.physical_size.y as u32,
+            image::ColorType::Rgb8,
+        )
+        .unwrap();
+    }
 
-fn test_rasterization() {
-    let mut buffer: Vec<u8> = vec![0; (WIDTH * HEIGHT * 3) as usize];
-    let t1 = [
-        Vertex {
-            position: Vec4::new(10., 70., 0., 1.),
-        },
-        Vertex {
-            position: Vec4::new(50., 160., 0., 1.),
-        },
-        Vertex {
-            position: Vec4::new(70., 80., 0., 1.),
-        },
-    ];
-    let t2 = [
-        Vertex {
-            position: Vec4::new(180., 50., 0., 1.),
-        },
-        Vertex {
-            position: Vec4::new(150., 1., 0., 1.),
-        },
-        Vertex {
-            position: Vec4::new(70., 180., 0., 1.),
-        },
-    ];
-    let t3 = [
-        Vertex {
-            position: Vec4::new(180., 150., 0., 1.),
-        },
-        Vertex {
-            position: Vec4::new(120., 160., 0., 1.),
-        },
-        Vertex {
-            position: Vec4::new(130., 180., 0., 1.),
-        },
-    ];
-    draw_triangle(&t1, &mut buffer);
-    draw_triangle(&t2, &mut buffer);
-    draw_triangle(&t3, &mut buffer);
-    image::save_buffer("image.png", &buffer, WIDTH, HEIGHT, image::ColorType::Rgb8).unwrap();
-}
+    #[test]
+    fn test_mesh() {
+        let mut renderer = create_render();
+        let meshs = load_gltf("./assets/sphere/sphere.gltf");
 
+        // 相机在 (0,0,200) 看向（0，0，0）
+        renderer.camera.transform =
+            Transform::from_xyz(0., 0., 2.7).looking_at([0., 0., 0.].into(), Vec3::Y);
 
-fn main() {
-    test_rasterization();
+        for mut mesh in meshs {
+            renderer.draw_mesh(&mut mesh);
+        }
+        image::save_buffer(
+            "image_mesh.png",
+            &renderer.frame_buffer,
+            renderer.camera.viewport.physical_size.x as u32,
+            renderer.camera.viewport.physical_size.y as u32,
+            image::ColorType::Rgb8,
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn test_rasterization() {
+        let mut renderer = create_render();
+        let t1 = [
+            Vertex {
+                position: Vec4::new(10., 70., 0., 1.),
+                ..Default::default()
+            },
+            Vertex {
+                position: Vec4::new(50., 160., 0., 1.),
+                ..Default::default()
+            },
+            Vertex {
+                position: Vec4::new(70., 80., 0., 1.),
+                ..Default::default()
+            },
+        ];
+        let t2 = [
+            Vertex {
+                position: Vec4::new(180., 50., 0., 1.),
+                ..Default::default()
+            },
+            Vertex {
+                position: Vec4::new(150., 1., 0., 1.),
+                ..Default::default()
+            },
+            Vertex {
+                position: Vec4::new(70., 180., 0., 1.),
+                ..Default::default()
+            },
+        ];
+        let t3 = [
+            Vertex {
+                position: Vec4::new(180., 150., 0., 1.),
+                ..Default::default()
+            },
+            Vertex {
+                position: Vec4::new(120., 160., 0., 1.),
+                ..Default::default()
+            },
+            Vertex {
+                position: Vec4::new(130., 180., 0., 1.),
+                ..Default::default()
+            },
+        ];
+        renderer.rasterization(&t1);
+        renderer.rasterization(&t2);
+        renderer.rasterization(&t3);
+        image::save_buffer(
+            "image_rasterization.png",
+            &renderer.frame_buffer,
+            renderer.camera.viewport.physical_size.x as u32,
+            renderer.camera.viewport.physical_size.y as u32,
+            image::ColorType::Rgb8,
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn test_mvp() {
+        let mut renderer = create_render();
+        let mut triangle = [
+            Vertex {
+                position: Vec4::new(50., 0., -400., 1.),
+                ..Default::default()
+            },
+            Vertex {
+                position: Vec4::new(0., 100., -400., 1.),
+                ..Default::default()
+            },
+            Vertex {
+                position: Vec4::new(-50., 0., -400., 1.),
+                ..Default::default()
+            },
+        ];
+
+        // 相机在 (0,0,300) 看向（0，0，0）
+        renderer.camera.transform =
+            Transform::from_xyz(0., 0., 300.).looking_at([0., 0., 0.].into(), Vec3::Y);
+
+        let model_matrix = Mat4::IDENTITY;
+        renderer.draw_triangle(&mut triangle, model_matrix);
+        image::save_buffer(
+            "image_mvp.png",
+            &renderer.frame_buffer,
+            renderer.camera.viewport.physical_size.x as u32,
+            renderer.camera.viewport.physical_size.y as u32,
+            image::ColorType::Rgb8,
+        )
+        .unwrap();
+    }
 }
+fn main() {}
