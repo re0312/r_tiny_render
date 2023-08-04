@@ -19,14 +19,18 @@ mod tests {
 
     fn create_render() -> Renderer {
         let camera = Camera {
-            viewport: Viewport::new((0., 0.).into(), (400., 400.).into()),
+            viewport: Viewport::new((0., 0.).into(), (1000., 1000.).into()),
             ..Default::default()
         };
         Renderer::new().with_camera(camera)
     }
     #[test]
     fn test_line() {
-        let mut renderer = create_render();
+        let camera = Camera {
+            viewport: Viewport::new((0., 0.).into(), (400., 400.).into()),
+            ..Default::default()
+        };
+        let mut renderer = Renderer::new().with_camera(camera);
         let lines = [
             ((50., 160.).into(), (70., 80.).into()),
             ((0., 0.).into(), (10., 300.).into()),
@@ -34,7 +38,10 @@ mod tests {
             ((300., 300.).into(), (100., 300.).into()),
             ((246., 383.).into(), (229., 388.).into()),
             ((399., 400.).into(), (200., 200.).into()),
-            ((3909., 4000.).into(), (2000., 2000.).into()),
+            ((500., 0.).into(), (0., 500.).into()),
+            ((500., 0.).into(), (100., 300.).into()),
+            ((800., 0.).into(), (0., 800.).into()),
+            ((400., 0.).into(), (0., 400.).into()),
         ];
         for line in lines {
             renderer.draw_line(line);
@@ -53,10 +60,12 @@ mod tests {
     fn test_mesh() {
         let mut renderer = create_render();
         let meshs = load_gltf("./assets/sphere/sphere.gltf");
+        // let meshs = load_gltf("./assets/cube/cube.gltf");
+        // let meshs = load_gltf("./assets/monkey/monkey.gltf");
 
         // 相机在 (0,0,200) 看向（0，0，0）
         renderer.camera.transform =
-            Transform::from_xyz(0., 0., 2.7).looking_at([0., 0., 0.].into(), Vec3::Y);
+            Transform::from_xyz(0., 0., 4.).looking_at([0., 0., 0.].into(), Vec3::Y);
 
         for mut mesh in meshs {
             renderer.draw_mesh(&mut mesh);
@@ -77,14 +86,17 @@ mod tests {
         let t1 = [
             Vertex {
                 position: Vec4::new(10., 70., 0., 1.),
+                color: Some(Color::RED),
                 ..Default::default()
             },
             Vertex {
                 position: Vec4::new(50., 160., 0., 1.),
+                color: Some(Color::GREEN),
                 ..Default::default()
             },
             Vertex {
                 position: Vec4::new(70., 80., 0., 1.),
+                color: Some(Color::BLUE),
                 ..Default::default()
             },
         ];
@@ -134,7 +146,7 @@ mod tests {
         let mut renderer = create_render();
         let mut triangle = [
             Vertex {
-                position: Vec4::new(50., 0., -400., 1.),
+                position: Vec4::new(100., 0., -400., 1.),
                 ..Default::default()
             },
             Vertex {
@@ -155,6 +167,60 @@ mod tests {
         renderer.draw_triangle(&mut triangle, model_matrix);
         image::save_buffer(
             "image_mvp.png",
+            &renderer.frame_buffer,
+            renderer.camera.viewport.physical_size.x as u32,
+            renderer.camera.viewport.physical_size.y as u32,
+            image::ColorType::Rgb8,
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn test_zbuffer() {
+        let mut renderer = create_render();
+        // 相机在 (0,0,300) 看向（0，0，0）
+        renderer.camera.transform =
+            Transform::from_xyz(0., 0., 600.).looking_at([0., 0., 0.].into(), Vec3::Y);
+
+        let mut triangle1 = [
+            Vertex {
+                position: Vec4::new(50., 0., 0., 1.),
+                color: Some(Color::RED),
+                ..Default::default()
+            },
+            Vertex {
+                position: Vec4::new(0., 100., 0., 1.),
+                color: Some(Color::RED),
+                ..Default::default()
+            },
+            Vertex {
+                position: Vec4::new(-50., 0., 0., 1.),
+                color: Some(Color::RED),
+                ..Default::default()
+            },
+        ];
+        let mut triangle2 = [
+            Vertex {
+                position: Vec4::new(100., 0., 100., 1.),
+                color: Some(Color::BLUE),
+                ..Default::default()
+            },
+            Vertex {
+                position: Vec4::new(0., 100., 100., 1.),
+                color: Some(Color::BLUE),
+                ..Default::default()
+            },
+            Vertex {
+                position: Vec4::new(-50., 0., 100., 1.),
+                color: Some(Color::BLUE),
+                ..Default::default()
+            },
+        ];
+        let model_matrix = Mat4::IDENTITY;
+        renderer.draw_triangle(&mut triangle2, model_matrix);
+        renderer.draw_triangle(&mut triangle1, model_matrix);
+        image::save_buffer(
+            "image_zbuffer.png",
             &renderer.frame_buffer,
             renderer.camera.viewport.physical_size.x as u32,
             renderer.camera.viewport.physical_size.y as u32,

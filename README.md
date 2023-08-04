@@ -8,7 +8,7 @@ Todo:
 
 - [x] Bresenham’s Line Drawing Algorithm
 
-- [x] gltf Model
+- [x] load gltf Model
 
 - [x] Triangle Rasterization
 
@@ -16,11 +16,11 @@ Todo:
 
 - [x] Culling
 
+- [x] Z-buffer
+
 - [x] Vertex and Fragment Shader
 
 - [x] Antialiasing : SSAA MSAA FXAA
-
-- [x] Z-buffer
 
 - [x] Shadow Mapping
 

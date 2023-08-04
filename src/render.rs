@@ -1,8 +1,5 @@
-use std::error::Error;
-
 use crate::camera::{Camera, CameraProjection};
 use crate::color::Color;
-
 use crate::math::{Mat4, Vec2, Vec3, Vec4};
 use crate::mesh::{Mesh, Vertex};
 
@@ -19,7 +16,7 @@ impl Renderer {
 
     pub fn with_camera(mut self, camera: Camera) -> Self {
         self.frame_buffer = vec![0; camera.viewport.size() as usize * 3];
-        self.depth_buffer = vec![0.; camera.viewport.size() as usize * 3];
+        self.depth_buffer = vec![0.; camera.viewport.size() as usize];
         self.camera = camera;
         self
     }
@@ -111,15 +108,24 @@ impl Renderer {
         // 窗口变换矩阵
         let viewport_matrix = self.camera.viewport.get_viewport_matrix();
 
-        // mvp变换
+        // 模型坐标系 -> 实际坐标系
         apply_matrix(triangle, model_matrix);
+
+        // 世界坐标系 -> 视图坐标系
         apply_matrix(triangle, view_matrix);
+
+        // 背面剔除顺时针的图元
+        if !back_face_culling(triangle, Vec3::NEG_Z) {
+            return;
+        }
+
+        // 投影矩阵 从视图坐标系 -> 齐次坐标系
         apply_matrix(triangle, projection_matrix);
 
-        // 齐次除法 把经过变换后的向量变为坐标
+        // 齐次除法 齐次坐标系-> 设备标准坐标系
         homogeneous_division(triangle);
 
-        // 坐标映射到渲染窗口
+        // 设备标准坐标系 -> 视窗（屏幕）坐标系
         apply_matrix(triangle, viewport_matrix);
 
         // 光栅化处理
@@ -160,11 +166,34 @@ impl Renderer {
             .unwrap();
         for x in x_min..x_max {
             for y in y_min..y_max {
-                if inside_triangle(x as f32, y as f32, triangle) {
-                    self.draw_pixel(x, y, Color::WHITE);
+                let p_barycenter = barycentric_2d(
+                    (x as f32, y as f32).into(),
+                    triangle[0].position.xy(),
+                    triangle[1].position.xy(),
+                    triangle[2].position.xy(),
+                );
+
+                if inside_triangle_barcentric(p_barycenter) {
+                    // zbuffer
+                    let z_interpolation = triangle[0].position.z * p_barycenter.x
+                        + triangle[1].position.z * p_barycenter.y
+                        + triangle[2].position.z * p_barycenter.z;
+                    if z_interpolation
+                        < self.depth_buffer[y * self.camera.viewport.physical_size.y as usize + x]
+                    {
+                        // 颜色插值
+                        let pixel_color = triangle[0].color.unwrap_or(Color::WHITE)
+                            * p_barycenter.x
+                            + triangle[1].color.unwrap_or(Color::WHITE) * p_barycenter.y
+                            + triangle[2].color.unwrap_or(Color::WHITE) * p_barycenter.z;
+                        self.depth_buffer[y * self.camera.viewport.physical_size.y as usize + x] =
+                            z_interpolation;
+                        self.draw_pixel(x, y, pixel_color);
+                    }
                 }
             }
         }
+        self.draw_wireframe(triangle);
         #[cfg(target_featur = "info")]
         println!("rasterization:{},{},{},{}", x_min, y_min, x_max, y_max);
     }
@@ -193,24 +222,48 @@ pub fn endpoint_code(p: Vec2, rec_left_top: Vec2, rec_right_bot: Vec2) -> u8 {
     hc | vc
 }
 
-// 线段裁剪，裁剪不在窗口范围里面的线段
+// Cohen-Sutherland线段裁剪算法，裁剪不在窗口范围里面的线段
 pub fn clip_line(
     line: (Vec2, Vec2),
     rec_left_top: Vec2,
     rec_right_bot: Vec2,
 ) -> Option<(Vec2, Vec2)> {
-    let p0_code = endpoint_code(line.0, rec_left_top, rec_right_bot);
-    let p1_code = endpoint_code(line.1, rec_left_top, rec_right_bot);
+    let (mut p0, mut p1) = line;
+    let mut p0_code = endpoint_code(p0, rec_left_top, rec_right_bot);
+    let mut p1_code = endpoint_code(p1, rec_left_top, rec_right_bot);
 
-    if p0_code & p1_code != 0 {
-        return None;
-    } else if p0_code | p1_code == 0 {
-        return Some(line);
+    loop {
+        if p0_code & p1_code != 0 {
+            return None;
+        } else if p0_code | p1_code == 0 {
+            return Some((p0, p1));
+        }
+        let out_code = if p0_code > p1_code { p0_code } else { p1_code };
+        let mut p = Vec2::ZERO;
+        if out_code & TOP != 0 {
+            p.x = (p1.x - p0.x) / (p1.y - p0.y) * (rec_left_top.y - p0.y) + p0.x;
+            p.y = rec_left_top.y;
+        } else if out_code & BOTTOM != 0 {
+            p.x = p0.x + (p0.x - p0.x) * (rec_right_bot.y - p0.y) / (p1.y - p0.y);
+            p.y = rec_right_bot.y;
+        } else if out_code & RIGHT != 0 {
+            p.x = rec_right_bot.x;
+            p.y = p0.y + (p1.y - p0.y) * (rec_right_bot.x - p0.x) / (p1.x - p0.x);
+        } else if out_code & LEFT != 0 {
+            p.x = rec_left_top.x;
+            p.y = p0.y + (p1.y - p0.y) * (rec_left_top.x - p0.x) / (p1.x - p0.x);
+        }
+        if out_code == p0_code {
+            p0 = p;
+            p0_code = endpoint_code(p0, rec_left_top, rec_right_bot);
+        } else {
+            p1 = p;
+            p1_code = endpoint_code(p1, rec_left_top, rec_right_bot);
+        }
     }
-
-    return None;
 }
 
+//  通过向量叉乘判断点是否在三角形里
 fn inside_triangle(x: f32, y: f32, triangle: &[Vertex]) -> bool {
     let mut flag = 0;
     for i in 0..triangle.len() {
@@ -237,6 +290,11 @@ fn inside_triangle(x: f32, y: f32, triangle: &[Vertex]) -> bool {
     return true;
 }
 
+// 通过重心坐标判断点是否在三角形中
+fn inside_triangle_barcentric(barcentric: Vec3) -> bool {
+    barcentric.x > 0. && barcentric.y > 0. && barcentric.z > 0.
+}
+
 pub fn apply_matrix(triangle: &mut [Vertex], matrix: Mat4) {
     for i in 0..triangle.len() {
         triangle[i].position = matrix * triangle[i].position;
@@ -251,4 +309,19 @@ pub fn homogeneous_division(triangle: &mut [Vertex]) {
         x.position.w = 1.;
     })
 }
-pub fn back_face_culling(triangle: &[Vertex; 3], view_dir: Vec3) {}
+// 背面剔除，剔除所有顺时针的三角形
+pub fn back_face_culling(triangle: &[Vertex], view_dir: Vec3) -> bool {
+    let face_normal = (triangle[1].position.xyz() - triangle[0].position.xyz())
+        .cross(triangle[2].position.xyz() - triangle[1].position.xyz());
+    return face_normal.dot(view_dir) < 0.0;
+}
+// 视锥体剔除
+pub fn frustum_culling(triangle: &[Vertex; 3]) {}
+
+pub fn barycentric_2d(p: Vec2, a: Vec2, b: Vec2, c: Vec2) -> Vec3 {
+    let double_triangle_area = (b - a).cross(c - a);
+    let alpha = (b - p).cross(c - p) / double_triangle_area;
+    let beta = (c - p).cross(a - p) / double_triangle_area;
+    let gamma = (a - p).cross(b - p) / double_triangle_area;
+    [alpha, beta, gamma].into()
+}
