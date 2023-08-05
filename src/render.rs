@@ -1,3 +1,5 @@
+use std::array;
+
 use crate::camera::{Camera, CameraProjection};
 use crate::color::Color;
 use crate::math::{Mat4, Vec2, Vec3, Vec4};
@@ -8,6 +10,8 @@ pub struct Renderer {
     pub camera: Camera,
     pub frame_buffer: Vec<u8>,
     pub depth_buffer: Vec<f32>,
+    // 保留齐次坐标下的w值，其实就是视图空间中的z值
+    pub w_buffer: Vec<f32>,
 }
 impl Renderer {
     pub fn new() -> Self {
@@ -17,6 +21,7 @@ impl Renderer {
     pub fn with_camera(mut self, camera: Camera) -> Self {
         self.frame_buffer = vec![0; camera.viewport.size() as usize * 3];
         self.depth_buffer = vec![0.; camera.viewport.size() as usize];
+        self.w_buffer = vec![1.; 3];
         self.camera = camera;
         self
     }
@@ -122,6 +127,9 @@ impl Renderer {
         // 投影矩阵 从视图坐标系 -> 齐次坐标系
         apply_matrix(triangle, projection_matrix);
 
+        // 保留齐次坐标系下面的w值，后面需要透视矫正
+        self.w_buffer = triangle.iter().map(|v| v.position.w).collect::<Vec<f32>>();
+
         // 齐次除法 齐次坐标系-> 设备标准坐标系
         homogeneous_division(triangle);
 
@@ -166,11 +174,22 @@ impl Renderer {
             .unwrap();
         for x in x_min..x_max {
             for y in y_min..y_max {
-                let p_barycenter = barycentric_2d(
+                let a =barycentric_2d(
                     (x as f32, y as f32).into(),
                     triangle[0].position.xy(),
                     triangle[1].position.xy(),
                     triangle[2].position.xy(),
+                );
+                //经过透视矫正后的重心坐标
+                let p_barycenter = perspective_correct(
+                    barycentric_2d(
+                        (x as f32, y as f32).into(),
+                        triangle[0].position.xy(),
+                        triangle[1].position.xy(),
+                        triangle[2].position.xy(),
+                    )
+                    .into(),
+                    &self.w_buffer,
                 );
 
                 if inside_triangle_barcentric(p_barycenter) {
@@ -324,4 +343,12 @@ pub fn barycentric_2d(p: Vec2, a: Vec2, b: Vec2, c: Vec2) -> Vec3 {
     let beta = (c - p).cross(a - p) / double_triangle_area;
     let gamma = (a - p).cross(b - p) / double_triangle_area;
     [alpha, beta, gamma].into()
+}
+
+pub fn perspective_correct((alpha, beta, gamma): (f32, f32, f32), w: &Vec<f32>) -> Vec3 {
+    let w0 = w[0].recip() * alpha;
+    let w1 = w[1].recip() * beta;
+    let w2 = w[2].recip() * gamma;
+    let normalizer = 1.0 / (w0 + w1 + w2);
+    [w0 * normalizer, w1 * normalizer, w2 * normalizer].into()
 }

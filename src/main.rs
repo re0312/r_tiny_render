@@ -147,14 +147,17 @@ mod tests {
         let mut triangle = [
             Vertex {
                 position: Vec4::new(100., 0., -400., 1.),
+                color: Some(Color::RED),
                 ..Default::default()
             },
             Vertex {
                 position: Vec4::new(0., 100., -400., 1.),
+                color: Some(Color::GREEN),
                 ..Default::default()
             },
             Vertex {
                 position: Vec4::new(-50., 0., -400., 1.),
+                color: Some(Color::BLUE),
                 ..Default::default()
             },
         ];
