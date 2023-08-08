@@ -105,6 +105,22 @@ impl Renderer {
         // 窗口变换矩阵
         let viewport_matrix = self.camera.viewport.get_viewport_matrix();
 
+        // 右手系压缩到 z 深度 [0，1], reverse z 0代表原平面，1代码近平面
+        #[rustfmt::skip]
+        let projection_z_reverse_matrix = Mat4::from_rows_slice(&[
+            -1., 0., 0., 0.,
+            0., -1., 0., 0.,
+            0., 0., -1., -1.,
+            0., 0., 0., -1.,
+        ])*projection_matrix;
+        #[rustfmt::skip]
+        let project_reverse_matrix = Mat4::from_rows_slice(&[
+            -1., 0., 0., 0.,
+            0., -1., 0., 0.,
+            0., 0., -1., 0.,
+            0., 0., 0., -1.,
+        ])*projection_matrix;
+
         // 模型坐标系 -> 实际坐标系
         apply_matrix(triangle, model_matrix);
 
@@ -117,9 +133,12 @@ impl Renderer {
         }
 
         // 投影矩阵 从视图坐标系 -> 齐次坐标系
-        apply_matrix(triangle, projection_matrix);
+        apply_matrix(triangle, projection_z_reverse_matrix);
 
-        let frustum = Frustum::from_view_projection(&projection_matrix);
+        let frustum = Frustum::from_view_projection(&projection_z_reverse_matrix);
+        let frustum2 = Frustum::from_view_projection(&project_reverse_matrix);
+        let frustum3 = Frustum::from_view_projection(&projection_matrix);
+
         // 齐次裁剪，这里没有视窗裁剪，三角形中有一个顶点不在视锥里面直接抛弃掉,这里不是太严谨
         if !self.homogeneous_clip(triangle) {
             return;
@@ -153,29 +172,32 @@ impl Renderer {
             .iter()
             .map(|x| x.position.x as usize)
             .min()
-            .unwrap();
+            .unwrap()
+            .max(0);
         let y_min = triangle
             .iter()
             .map(|x| x.position.y as usize)
             .min()
-            .unwrap();
+            .unwrap()
+            .max(0);
 
         let x_max = triangle
             .iter()
             .map(|x| x.position.x as usize)
             .max()
-            .unwrap();
+            .unwrap()
+            .min(self.camera.viewport.physical_size.x as usize);
         let y_max = triangle
             .iter()
             .map(|x| x.position.y as usize)
             .max()
-            .unwrap();
+            .unwrap()
+            .min(self.camera.viewport.physical_size.y as usize);
         println!(
             "{:?}",
             triangle.iter().map(|x| x.position).collect::<Vec<Vec4>>()
         );
         for x in x_min..x_max {
-            println!("");
             for y in y_min..y_max {
                 //经过透视矫正后的重心坐标
                 let p_barycenter = perspective_correct(
@@ -195,11 +217,11 @@ impl Renderer {
                         + triangle[1].position.z * p_barycenter.y
                         + triangle[2].position.z * p_barycenter.z;
 
-                    // z值越大越远
+                    // reverse z z值越大越近，z为 0 是远平面
                     if y < self.camera.viewport.physical_size.y as usize
                         && x < self.camera.viewport.physical_size.x as usize
                         && z_interpolation
-                            < self.depth_buffer
+                            > self.depth_buffer
                                 [y * self.camera.viewport.physical_size.y as usize + x]
                     {
                         // 颜色插值
@@ -219,11 +241,21 @@ impl Renderer {
         println!("rasterization:{},{},{},{}", x_min, y_min, x_max, y_max);
     }
 
+    // 齐次坐标下视锥裁剪
     pub fn homogeneous_clip(&self, triangle: &[Vertex]) -> bool {
+        // 三角形 任意一个点在近平面后面或者超过远平面范围 直接抛弃整个三角形,因为如果在平面上可能会导致除0错误
         if triangle.iter().any(|v| {
-            v.position.w > -self.camera.projectiton.near
-                || v.position.w < -self.camera.projectiton.far
+            v.position.w > self.camera.projectiton.far
+                || v.position.w < self.camera.projectiton.near
         }) {
+            return false;
+        }
+        // 三角形每个点都不在视锥范围里面就裁剪掉，由于是已经是裁剪空间，所以直接比较x,y值和w的大小就行
+        // 要求 -w<x<w -w<y<w
+        else if triangle
+            .iter()
+            .all(|v| v.position.x.abs() > v.position.w || v.position.y.abs() > v.position.w)
+        {
             return false;
         }
         return true;
@@ -346,8 +378,6 @@ pub fn back_face_culling(triangle: &[Vertex], view_dir: Vec3) -> bool {
         .cross(triangle[2].position.xyz() - triangle[1].position.xyz());
     return face_normal.dot(view_dir) < 0.0;
 }
-// 视锥体剔除
-pub fn frustum_culling(triangle: &[Vertex; 3]) {}
 
 pub fn barycentric_2d(p: Vec2, a: Vec2, b: Vec2, c: Vec2) -> Vec3 {
     let double_triangle_area = (b - a).cross(c - a);
@@ -364,5 +394,3 @@ pub fn perspective_correct((alpha, beta, gamma): (f32, f32, f32), w: &Vec<f32>) 
     let normalizer = 1.0 / (w0 + w1 + w2);
     [w0 * normalizer, w1 * normalizer, w2 * normalizer].into()
 }
-
-// 齐次坐标裁剪 视锥裁剪

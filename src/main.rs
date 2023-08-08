@@ -154,17 +154,17 @@ mod tests {
         let mut renderer = create_render();
         let mut triangle = [
             Vertex {
-                position: Vec4::new(50., 0., 200., 1.),
+                position: Vec4::new(1050., 0., -100., 1.),
                 color: Some(Color::RED),
                 ..Default::default()
             },
             Vertex {
-                position: Vec4::new(0., 100., 200., 1.),
+                position: Vec4::new(1000., 100., -100., 1.),
                 color: Some(Color::GREEN),
                 ..Default::default()
             },
             Vertex {
-                position: Vec4::new(-50., 0., 200., 1.),
+                position: Vec4::new(950., 0., -100., 1.),
                 color: Some(Color::BLUE),
                 ..Default::default()
             },
@@ -172,7 +172,7 @@ mod tests {
 
         // 相机在 (0,0,300) 看向（0，0，0）
         renderer.camera.transform =
-            Transform::from_xyz(0., 0., 300.).looking_at([0., 0., 0.].into(), Vec3::Y);
+            Transform::from_xyz(0., 0., 100.).looking_at([0., 0., 0.].into(), Vec3::Y);
 
         let model_matrix = Mat4::IDENTITY;
         renderer.draw_triangle(&mut triangle, model_matrix);
@@ -195,7 +195,7 @@ mod tests {
 
         let mut triangle1 = [
             Vertex {
-                position: Vec4::new(50., 0., 0., 1.),
+                position: Vec4::new(200., 0., 0., 1.),
                 color: Some(Color::RED),
                 ..Default::default()
             },

@@ -37,6 +37,7 @@ impl HalfSpace {
     }
 }
 
+// left right top bottom near far
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Frustum {
     pub half_spaces: [HalfSpace; 6],

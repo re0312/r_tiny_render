@@ -38,6 +38,7 @@ pub struct PerspectiveProjection {
 }
 
 impl CameraProjection for PerspectiveProjection {
+    // 这里映射将z值映射到[0,1]空间
     #[rustfmt::skip]
     fn get_projection_matrix(&self) -> Mat4 {
         let near_z = -self.near;
@@ -53,13 +54,13 @@ impl CameraProjection for PerspectiveProjection {
         let ortho_translation = Mat4::from_rows_slice(&[
             1., 0., 0., 0.,
             0., 1., 0., 0.,
-            0., 0., 1., -(near_z + far_z) / 2.,
+            0., 0., 1., -near_z,
             0., 0., 0., 1.,
         ]);
         let ortho_scale = Mat4::from_rows_slice(&[
-            2. / width_near, 0., 0., 0.,
-            0., 2. / height_near, 0., 0.,
-            0., 0., 2. / (near_z - far_z), 0.,
+            2./width_near, 0., 0., 0.,
+            0., 2./height_near, 0., 0.,
+            0., 0., 1./(near_z-far_z), 0.,
             0., 0., 0., 1.,
         ]);
         ortho_scale * ortho_translation * persp_to_ortho
