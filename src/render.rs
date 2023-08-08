@@ -1,15 +1,21 @@
 use std::array;
+use std::collections::HashMap;
+use std::hash::Hash;
 
 use crate::camera::{Camera, CameraProjection};
 use crate::color::Color;
+use crate::loader::TextureStorage;
 use crate::math::{Mat4, Vec2, Vec3, Vec4};
 use crate::mesh::{Mesh, Vertex};
 use crate::primitives::Frustum;
 use crate::transform;
 
+const MAX_RENDERER_BINDING: usize = 100;
+
 #[derive(Default)]
 pub struct Renderer {
     pub camera: Camera,
+    pub bindings: TextureStorage,
     pub frame_buffer: Vec<u8>,
     pub depth_buffer: Vec<f32>,
     // 保留齐次坐标下的w值，其实就是视图空间中的z值
@@ -105,22 +111,6 @@ impl Renderer {
         // 窗口变换矩阵
         let viewport_matrix = self.camera.viewport.get_viewport_matrix();
 
-        // 右手系压缩到 z 深度 [0，1], reverse z 0代表原平面，1代码近平面
-        #[rustfmt::skip]
-        let projection_z_reverse_matrix = Mat4::from_rows_slice(&[
-            -1., 0., 0., 0.,
-            0., -1., 0., 0.,
-            0., 0., -1., -1.,
-            0., 0., 0., -1.,
-        ])*projection_matrix;
-        #[rustfmt::skip]
-        let project_reverse_matrix = Mat4::from_rows_slice(&[
-            -1., 0., 0., 0.,
-            0., -1., 0., 0.,
-            0., 0., -1., 0.,
-            0., 0., 0., -1.,
-        ])*projection_matrix;
-
         // 模型坐标系 -> 实际坐标系
         apply_matrix(triangle, model_matrix);
 
@@ -133,13 +123,11 @@ impl Renderer {
         }
 
         // 投影矩阵 从视图坐标系 -> 齐次坐标系
-        apply_matrix(triangle, projection_z_reverse_matrix);
+        apply_matrix(triangle, projection_matrix);
 
-        let frustum = Frustum::from_view_projection(&projection_z_reverse_matrix);
-        let frustum2 = Frustum::from_view_projection(&project_reverse_matrix);
-        let frustum3 = Frustum::from_view_projection(&projection_matrix);
+        // let frustum = Frustum::from_view_projection(&projection_z_reverse_matrix);
 
-        // 齐次裁剪，这里没有视窗裁剪，三角形中有一个顶点不在视锥里面直接抛弃掉,这里不是太严谨
+        // 齐次裁剪，这里没有视窗裁剪,这里不是太严谨
         if !self.homogeneous_clip(triangle) {
             return;
         }
@@ -166,6 +154,9 @@ impl Renderer {
         }
     }
 
+    pub fn set_binding(&mut self, index: usize, binding: TextureStorage) {
+        self.bindings = binding;
+    }
     // 光栅化
     pub fn rasterization(&mut self, triangle: &[Vertex]) {
         let x_min = triangle
@@ -217,26 +208,26 @@ impl Renderer {
                         + triangle[1].position.z * p_barycenter.y
                         + triangle[2].position.z * p_barycenter.z;
 
-                    // reverse z z值越大越近，z为 0 是远平面
-                    if y < self.camera.viewport.physical_size.y as usize
-                        && x < self.camera.viewport.physical_size.x as usize
-                        && z_interpolation
-                            > self.depth_buffer
-                                [y * self.camera.viewport.physical_size.y as usize + x]
+                    // reversed z z值越大越近，z为 0 是远平面
+                    if z_interpolation
+                        > self.depth_buffer[y * self.camera.viewport.physical_size.y as usize + x]
                     {
                         // 颜色插值
-                        let pixel_color = triangle[0].color.unwrap_or(Color::WHITE)
+                        let fragment_color = triangle[0].color.unwrap_or(Color::WHITE)
                             * p_barycenter.x
                             + triangle[1].color.unwrap_or(Color::WHITE) * p_barycenter.y
                             + triangle[2].color.unwrap_or(Color::WHITE) * p_barycenter.z;
                         self.depth_buffer[y * self.camera.viewport.physical_size.y as usize + x] =
                             z_interpolation;
+
+                        let pixel_color =
+                            self.fragment_shader(triangle, fragment_color, p_barycenter);
                         self.draw_pixel(x, y, pixel_color);
                     }
                 }
             }
         }
-        self.draw_wireframe(triangle);
+        // self.draw_wireframe(triangle);
         #[cfg(target_featur = "info")]
         println!("rasterization:{},{},{},{}", x_min, y_min, x_max, y_max);
     }
@@ -259,6 +250,34 @@ impl Renderer {
             return false;
         }
         return true;
+    }
+
+    pub fn fragment_shader(&self, triangle: &[Vertex], color: Color, barycenter: Vec3) -> Color {
+        let texcoord = if triangle[0].texcoord.is_some()
+            && triangle[1].texcoord.is_some()
+            && triangle[2].texcoord.is_some()
+        {
+            Some(
+                triangle[0].texcoord.unwrap() * barycenter.x
+                    + triangle[1].texcoord.unwrap() * barycenter.y
+                    + triangle[2].texcoord.unwrap() * barycenter.z,
+            )
+        } else {
+            None
+        };
+        let texcolor = if texcoord.is_some() {
+            self.bindings
+                .texture_id_map
+                .get(&0)
+                .map(|texture| texture.sample(texcoord.unwrap()))
+        } else {
+            None
+        };
+        return if texcolor.is_some() {
+            texcolor.unwrap()
+        } else {
+            color
+        };
     }
 }
 

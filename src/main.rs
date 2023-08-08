@@ -65,7 +65,6 @@ mod tests {
         // let meshs = load_gltf("./assets/cube/cube.gltf");
         // let meshs = load_gltf("./assets/monkey/monkey.gltf");
 
-        // 相机在 (0,0,200) 看向（0，0，0）
         renderer.camera.transform =
             Transform::from_xyz(0., 0., 4.).looking_at([0., 0., 0.].into(), Vec3::Y);
 
@@ -73,8 +72,6 @@ mod tests {
             let model_matrix = mesh.transform.compute_matrix();
             for i in 0..mesh.vertices.len() / 3 {
                 let triangle = &mut mesh.vertices[i * 3..(i * 3) + 3];
-
-                // mvp
                 renderer.draw_triangle(triangle, model_matrix);
             }
         }
@@ -154,17 +151,17 @@ mod tests {
         let mut renderer = create_render();
         let mut triangle = [
             Vertex {
-                position: Vec4::new(1050., 0., -100., 1.),
+                position: Vec4::new(50., 0., -100., 1.),
                 color: Some(Color::RED),
                 ..Default::default()
             },
             Vertex {
-                position: Vec4::new(1000., 100., -100., 1.),
+                position: Vec4::new(0., 100., -100., 1.),
                 color: Some(Color::GREEN),
                 ..Default::default()
             },
             Vertex {
-                position: Vec4::new(950., 0., -100., 1.),
+                position: Vec4::new(-50., 0., -100., 1.),
                 color: Some(Color::BLUE),
                 ..Default::default()
             },
@@ -172,7 +169,7 @@ mod tests {
 
         // 相机在 (0,0,300) 看向（0，0，0）
         renderer.camera.transform =
-            Transform::from_xyz(0., 0., 100.).looking_at([0., 0., 0.].into(), Vec3::Y);
+            Transform::from_xyz(0., 0., 200.).looking_at([0., 0., 0.].into(), Vec3::Y);
 
         let model_matrix = Mat4::IDENTITY;
         renderer.draw_triangle(&mut triangle, model_matrix);
@@ -232,6 +229,30 @@ mod tests {
         renderer.draw_triangle(&mut triangle1, model_matrix);
         image::save_buffer(
             "image_zbuffer.png",
+            &renderer.frame_buffer,
+            renderer.camera.viewport.physical_size.x as u32,
+            renderer.camera.viewport.physical_size.y as u32,
+            image::ColorType::Rgb8,
+        )
+        .unwrap();
+    }
+    #[test]
+    fn test_texture() {
+        let mut renderer = create_render();
+        renderer.camera.transform =
+            Transform::from_xyz(0., 0., 4.).looking_at([0., 0., 0.].into(), Vec3::Y);
+
+        let (meshs, textures) = load_gltf("./assets/box-textured/BoxTextured.gltf");
+        renderer.set_binding(0, textures);
+        for mut mesh in meshs {
+            let model_matrix = mesh.transform.compute_matrix();
+            for i in 0..mesh.vertices.len() / 3 {
+                let triangle = &mut mesh.vertices[i * 3..(i * 3) + 3];
+                renderer.draw_triangle(triangle, model_matrix);
+            }
+        }
+        image::save_buffer(
+            "image_texture.png",
             &renderer.frame_buffer,
             renderer.camera.viewport.physical_size.x as u32,
             renderer.camera.viewport.physical_size.y as u32,

@@ -124,7 +124,7 @@ pub fn load_gltf(path: &str) -> (Vec<Mesh>, TextureStorage) {
                     color: colors
                         .get(index as usize)
                         .map(|v| v.clone().into())
-                        .or(Some(Color::RED)),
+                        .or(Some(Color::WHITE)),
                 };
                 mesh.vertices.push(vertex);
             }

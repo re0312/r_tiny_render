@@ -63,7 +63,15 @@ impl CameraProjection for PerspectiveProjection {
             0., 0., 1./(near_z-far_z), 0.,
             0., 0., 0., 1.,
         ]);
-        ortho_scale * ortho_translation * persp_to_ortho
+        // 右手系压缩到 z 深度 [0，1], reverse z 0代表原平面，1代码近平面
+        let rh_z_reverse=Mat4::from_rows_slice(&[
+            -1., 0., 0., 0.,
+            0., -1., 0., 0.,
+            0., 0., -1., -1.,
+            0., 0., 0., -1.,
+        ]);
+
+        rh_z_reverse * ortho_scale * ortho_translation * persp_to_ortho
     }
 
     fn update(&mut self, width: f32, height: f32) {

@@ -14,15 +14,17 @@ Todo:
 
 - [x] MVP Transform
 
-- [x] Culling
+- [x] frustum and backface Culling
 
 - [x] Z-buffer
 
-- [x] Vertex and Fragment Shader
+- [ ] texture
 
-- [x] Antialiasing : SSAA MSAA FXAA
+- [ ] Vertex and Fragment Shader
 
-- [x] Shadow Mapping
+- [ ] Antialiasing : SSAA MSAA FXAA
+
+- [ ] Shadow Mapping
 
 
 
