@@ -1,7 +1,10 @@
+use std::collections::HashMap;
+
 use crate::{
     color::Color,
     math::{Vec3, Vec4},
     mesh::{Mesh, Vertex},
+    texture::{Sampler, Texture},
 };
 use gltf::{buffer::Data, Document};
 
@@ -71,11 +74,15 @@ use gltf::{buffer::Data, Document};
 //     image::save_buffer("image.png", &buffer, WIDTH, HEIGHT, image::ColorType::Rgb8).unwrap();
 // }
 
-pub fn load_gltf(path: &str) -> Vec<Mesh> {
+#[derive(Debug, Default)]
+pub struct TextureStorage {
+    pub texture_id_map: HashMap<usize, Texture>,
+}
+pub fn load_gltf(path: &str) -> (Vec<Mesh>, TextureStorage) {
     let (document, buffers, images) = gltf::import(path).unwrap();
 
+    // 加载mesh
     let mut meshs = Vec::new();
-    // let mut meshes = Vec::new();
     for mesh in document.meshes() {
         for gltf_primitive in mesh.primitives() {
             let mut mesh = Mesh::default();
@@ -106,8 +113,8 @@ pub fn load_gltf(path: &str) -> Vec<Mesh> {
                 }
             }
             let Some(indices) =  reader.read_indices() else {
-              continue;
-             };
+                continue;
+            };
             let indices = indices.into_u32();
             for index in indices {
                 let vertex = Vertex {
@@ -126,5 +133,36 @@ pub fn load_gltf(path: &str) -> Vec<Mesh> {
         #[cfg(feature = "info")]
         println!("positions:{:?}", res);
     }
-    return meshs;
+
+    // 纹理加载
+    let mut textures = Vec::new();
+    for texture in document.textures() {
+        let source = texture.source();
+        let sampler = texture.sampler();
+        let image = images.get(source.index()).unwrap();
+
+        let texture = Texture {
+            id: texture.index(),
+            width: image.width,
+            height: image.height,
+            format: image.format,
+            data: image.pixels.clone(),
+            sampler: Sampler {
+                mag_filter: sampler.mag_filter(),
+                min_filter: sampler.min_filter(),
+                wrap_s: sampler.wrap_s(),
+                wrap_t: sampler.wrap_t(),
+            },
+        };
+        textures.push(texture);
+    }
+    (
+        meshs,
+        TextureStorage {
+            texture_id_map: textures
+                .into_iter()
+                .map(|textrue| (textrue.id, textrue))
+                .collect(),
+        },
+    )
 }

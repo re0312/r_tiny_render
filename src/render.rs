@@ -4,6 +4,8 @@ use crate::camera::{Camera, CameraProjection};
 use crate::color::Color;
 use crate::math::{Mat4, Vec2, Vec3, Vec4};
 use crate::mesh::{Mesh, Vertex};
+use crate::primitives::Frustum;
+use crate::transform;
 
 #[derive(Default)]
 pub struct Renderer {
@@ -21,7 +23,7 @@ impl Renderer {
     pub fn with_camera(mut self, camera: Camera) -> Self {
         self.frame_buffer = vec![0; camera.viewport.size() as usize * 3];
         self.depth_buffer = vec![0.; camera.viewport.size() as usize];
-        self.w_buffer = vec![1.; 3];
+        self.w_buffer = vec![1. / 3.; 3];
         self.camera = camera;
         self
     }
@@ -95,16 +97,6 @@ impl Renderer {
         None
     }
 
-    pub fn draw_mesh(&mut self, mesh: &mut Mesh) {
-        let model_matrix = mesh.transform.compute_matrix();
-        for i in 0..mesh.vertices.len() / 3 {
-            let triangle = &mut mesh.vertices[i * 3..(i * 3) + 3];
-
-            // mvp
-            self.draw_triangle(triangle, model_matrix);
-        }
-    }
-
     pub fn draw_triangle(&mut self, triangle: &mut [Vertex], model_matrix: Mat4) {
         // 视图变换
         let view_matrix = self.camera.get_view_matrix();
@@ -126,6 +118,12 @@ impl Renderer {
 
         // 投影矩阵 从视图坐标系 -> 齐次坐标系
         apply_matrix(triangle, projection_matrix);
+
+        let frustum = Frustum::from_view_projection(&projection_matrix);
+        // 齐次裁剪，这里没有视窗裁剪，三角形中有一个顶点不在视锥里面直接抛弃掉,这里不是太严谨
+        if !self.homogeneous_clip(triangle) {
+            return;
+        }
 
         // 保留齐次坐标系下面的w值，后面需要透视矫正
         self.w_buffer = triangle.iter().map(|v| v.position.w).collect::<Vec<f32>>();
@@ -172,14 +170,13 @@ impl Renderer {
             .map(|x| x.position.y as usize)
             .max()
             .unwrap();
+        println!(
+            "{:?}",
+            triangle.iter().map(|x| x.position).collect::<Vec<Vec4>>()
+        );
         for x in x_min..x_max {
+            println!("");
             for y in y_min..y_max {
-                let a =barycentric_2d(
-                    (x as f32, y as f32).into(),
-                    triangle[0].position.xy(),
-                    triangle[1].position.xy(),
-                    triangle[2].position.xy(),
-                );
                 //经过透视矫正后的重心坐标
                 let p_barycenter = perspective_correct(
                     barycentric_2d(
@@ -197,8 +194,13 @@ impl Renderer {
                     let z_interpolation = triangle[0].position.z * p_barycenter.x
                         + triangle[1].position.z * p_barycenter.y
                         + triangle[2].position.z * p_barycenter.z;
-                    if z_interpolation
-                        < self.depth_buffer[y * self.camera.viewport.physical_size.y as usize + x]
+
+                    // z值越大越远
+                    if y < self.camera.viewport.physical_size.y as usize
+                        && x < self.camera.viewport.physical_size.x as usize
+                        && z_interpolation
+                            < self.depth_buffer
+                                [y * self.camera.viewport.physical_size.y as usize + x]
                     {
                         // 颜色插值
                         let pixel_color = triangle[0].color.unwrap_or(Color::WHITE)
@@ -215,6 +217,16 @@ impl Renderer {
         self.draw_wireframe(triangle);
         #[cfg(target_featur = "info")]
         println!("rasterization:{},{},{},{}", x_min, y_min, x_max, y_max);
+    }
+
+    pub fn homogeneous_clip(&self, triangle: &[Vertex]) -> bool {
+        if triangle.iter().any(|v| {
+            v.position.w > -self.camera.projectiton.near
+                || v.position.w < -self.camera.projectiton.far
+        }) {
+            return false;
+        }
+        return true;
     }
 }
 
@@ -352,3 +364,5 @@ pub fn perspective_correct((alpha, beta, gamma): (f32, f32, f32), w: &Vec<f32>) 
     let normalizer = 1.0 / (w0 + w1 + w2);
     [w0 * normalizer, w1 * normalizer, w2 * normalizer].into()
 }
+
+// 齐次坐标裁剪 视锥裁剪

@@ -86,48 +86,4 @@ impl Frustum {
         Self { half_spaces }
     }
 
-    // Checks if a sphere intersects the frustum.
-    // #[inline]
-    // pub fn intersects_sphere(&self, sphere: &Sphere, intersect_far: bool) -> bool {
-    //     let sphere_center = sphere.center.extend(1.0);
-    //     let max = if intersect_far { 6 } else { 5 };
-    //     for half_space in &self.half_spaces[..max] {
-    //         if half_space.normal_d().dot(sphere_center) + sphere.radius <= 0.0 {
-    //             return false;
-    //         }
-    //     }
-    //     true
-    // }
-
-    // Checks if an Oriented Bounding Box (obb) intersects the frustum.
-    // #[inline]
-    // pub fn intersects_obb(
-    //     &self,
-    //     aabb: &Aabb,
-    //     model_to_world: &Mat4,
-    //     intersect_near: bool,
-    //     intersect_far: bool,
-    // ) -> bool {
-    //     let aabb_center_world = model_to_world.transform_point3a(aabb.center).extend(1.0);
-    //     let axes = [
-    //         Vec3A::from(model_to_world.x_axis),
-    //         Vec3A::from(model_to_world.y_axis),
-    //         Vec3A::from(model_to_world.z_axis),
-    //     ];
-
-    //     for (idx, half_space) in self.half_spaces.into_iter().enumerate() {
-    //         if idx == 4 && !intersect_near {
-    //             continue;
-    //         }
-    //         if idx == 5 && !intersect_far {
-    //             continue;
-    //         }
-    //         let p_normal = half_space.normal();
-    //         let relative_radius = aabb.relative_radius(&p_normal, &axes);
-    //         if half_space.normal_d().dot(aabb_center_world) + relative_radius <= 0.0 {
-    //             return false;
-    //         }
-    //     }
-    //     true
-    // }
 }

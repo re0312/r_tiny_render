@@ -4,7 +4,9 @@ mod loader;
 mod material;
 mod math;
 mod mesh;
+mod primitives;
 mod render;
+mod texture;
 mod transform;
 
 #[cfg(test)]
@@ -59,7 +61,7 @@ mod tests {
     #[test]
     fn test_mesh() {
         let mut renderer = create_render();
-        let meshs = load_gltf("./assets/sphere/sphere.gltf");
+        let (meshs, textures) = load_gltf("./assets/sphere/sphere.gltf");
         // let meshs = load_gltf("./assets/cube/cube.gltf");
         // let meshs = load_gltf("./assets/monkey/monkey.gltf");
 
@@ -68,7 +70,13 @@ mod tests {
             Transform::from_xyz(0., 0., 4.).looking_at([0., 0., 0.].into(), Vec3::Y);
 
         for mut mesh in meshs {
-            renderer.draw_mesh(&mut mesh);
+            let model_matrix = mesh.transform.compute_matrix();
+            for i in 0..mesh.vertices.len() / 3 {
+                let triangle = &mut mesh.vertices[i * 3..(i * 3) + 3];
+
+                // mvp
+                renderer.draw_triangle(triangle, model_matrix);
+            }
         }
         image::save_buffer(
             "image_mesh.png",
@@ -146,17 +154,17 @@ mod tests {
         let mut renderer = create_render();
         let mut triangle = [
             Vertex {
-                position: Vec4::new(100., 0., -400., 1.),
+                position: Vec4::new(50., 0., 200., 1.),
                 color: Some(Color::RED),
                 ..Default::default()
             },
             Vertex {
-                position: Vec4::new(0., 100., -400., 1.),
+                position: Vec4::new(0., 100., 200., 1.),
                 color: Some(Color::GREEN),
                 ..Default::default()
             },
             Vertex {
-                position: Vec4::new(-50., 0., -400., 1.),
+                position: Vec4::new(-50., 0., 200., 1.),
                 color: Some(Color::BLUE),
                 ..Default::default()
             },
