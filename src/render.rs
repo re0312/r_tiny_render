@@ -90,9 +90,9 @@ impl Renderer {
             (x2..x1).rev().collect::<Vec<i32>>()
         } {
             if xy_reverse {
-                self.draw_pixel(y0 as usize, x0 as usize, Color::WHITE);
+                self.draw_pixel(y0 as usize, x0 as usize, Color::RED);
             } else {
-                self.draw_pixel(x0 as usize, y0 as usize, Color::WHITE);
+                self.draw_pixel(x0 as usize, y0 as usize, Color::RED);
             }
             delta += ky;
             if delta > middle {
@@ -161,26 +161,26 @@ impl Renderer {
     pub fn rasterization(&mut self, triangle: &[Vertex]) {
         let x_min = triangle
             .iter()
-            .map(|x| x.position.x as usize)
+            .map(|x| x.position.x.ceil() as usize)
             .min()
             .unwrap()
             .max(0);
         let y_min = triangle
             .iter()
-            .map(|x| x.position.y as usize)
+            .map(|x| x.position.y.ceil() as usize)
             .min()
             .unwrap()
             .max(0);
 
         let x_max = triangle
             .iter()
-            .map(|x| x.position.x as usize)
+            .map(|x| x.position.x.ceil() as usize)
             .max()
             .unwrap()
             .min(self.camera.viewport.physical_size.x as usize);
         let y_max = triangle
             .iter()
-            .map(|x| x.position.y as usize)
+            .map(|x| x.position.y.ceil() as usize)
             .max()
             .unwrap()
             .min(self.camera.viewport.physical_size.y as usize);
@@ -190,19 +190,17 @@ impl Renderer {
         );
         for x in x_min..x_max {
             for y in y_min..y_max {
-                //经过透视矫正后的重心坐标
-                let p_barycenter = perspective_correct(
-                    barycentric_2d(
-                        (x as f32, y as f32).into(),
-                        triangle[0].position.xy(),
-                        triangle[1].position.xy(),
-                        triangle[2].position.xy(),
-                    )
-                    .into(),
-                    &self.w_buffer,
+                // 重心坐标
+                let barycenter = barycentric_2d(
+                    (x as f32, y as f32).into(),
+                    triangle[0].position.xy(),
+                    triangle[1].position.xy(),
+                    triangle[2].position.xy(),
                 );
 
-                if inside_triangle_barcentric(p_barycenter) {
+                if inside_triangle_barcentric(barycenter) {
+                    //经过透视矫正后的重心坐标
+                    let p_barycenter = perspective_correct(barycenter.into(), &self.w_buffer);
                     // zbuffer
                     let z_interpolation = triangle[0].position.z * p_barycenter.x
                         + triangle[1].position.z * p_barycenter.y
@@ -268,7 +266,7 @@ impl Renderer {
         let texcolor = if texcoord.is_some() {
             self.bindings
                 .texture_id_map
-                .get(&0)
+                .get(&3)
                 .map(|texture| texture.sample(texcoord.unwrap()))
         } else {
             None

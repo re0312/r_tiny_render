@@ -240,7 +240,7 @@ mod tests {
     fn test_texture() {
         let mut renderer = create_render();
         renderer.camera.transform =
-            Transform::from_xyz(0., 0., 4.).looking_at([0., 0., 0.].into(), Vec3::Y);
+            Transform::from_xyz(3., 3., 3.).looking_at([0., 0., 0.].into(), Vec3::Y);
 
         let (meshs, textures) = load_gltf("./assets/box-textured/BoxTextured.gltf");
         renderer.set_binding(0, textures);
@@ -260,5 +260,32 @@ mod tests {
         )
         .unwrap();
     }
+
+
+    #[test]
+    fn test_texture_2() {
+        let mut renderer = create_render();
+        renderer.camera.transform =
+            Transform::from_xyz(0., 0., 20.).looking_at([0., 0., 0.].into(), Vec3::Y);
+
+        let (meshs, textures) = load_gltf("./assets/assistrobot/scene.gltf");
+        renderer.set_binding(0, textures);
+        for mut mesh in meshs {
+            let model_matrix = mesh.transform.compute_matrix();
+            for i in 0..mesh.vertices.len() / 3 {
+                let triangle = &mut mesh.vertices[i * 3..(i * 3) + 3];
+                renderer.draw_triangle(triangle, model_matrix);
+            }
+        }
+        image::save_buffer(
+            "image_texture.png",
+            &renderer.frame_buffer,
+            renderer.camera.viewport.physical_size.x as u32,
+            renderer.camera.viewport.physical_size.y as u32,
+            image::ColorType::Rgb8,
+        )
+        .unwrap();
+    }
+
 }
 fn main() {}
