@@ -2,14 +2,16 @@ use core::fmt;
 use core::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Rem, Sub, SubAssign};
 #[derive(Clone, Copy, PartialEq)]
 pub struct Vec2 {
-    x: f32,
-    y: f32,
+    pub x: f32,
+    pub y: f32,
 }
+
 impl Default for Vec2 {
     fn default() -> Self {
         Self::splat(0.)
     }
 }
+
 impl Vec2 {
     pub fn splat(v: f32) -> Self {
         Self { x: v, y: v }
@@ -157,10 +159,10 @@ impl fmt::Debug for Vec2 {
 }
 
 #[derive(Clone, Copy, PartialEq)]
-struct Vec3 {
-    x: f32,
-    y: f32,
-    z: f32,
+pub struct Vec3 {
+    pub x: f32,
+    pub y: f32,
+    pub z: f32,
 }
 impl Default for Vec3 {
     fn default() -> Self {
@@ -168,16 +170,16 @@ impl Default for Vec3 {
     }
 }
 impl Vec3 {
-    fn splat(v: f32) -> Self {
+    pub fn splat(v: f32) -> Self {
         Self { x: v, y: v, z: v }
     }
-    fn new(x: f32, y: f32, z: f32) -> Self {
+    pub fn new(x: f32, y: f32, z: f32) -> Self {
         Self { x, y, z }
     }
     pub fn dot(self, rhs: Self) -> f32 {
         (self.x * rhs.x) + (self.y * rhs.y) + (self.z * rhs.z)
     }
-    fn length(self) -> f32 {
+    pub fn length(self) -> f32 {
         self.dot(self).sqrt()
     }
     pub fn distance(self, rhs: Self) -> f32 {
