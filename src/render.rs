@@ -1,25 +1,21 @@
-use std::array;
 use std::collections::HashMap;
-use std::hash::Hash;
 
+use crate::bind_group::{BindGroup, BindingType};
 use crate::camera::{Camera, CameraProjection};
 use crate::color::Color;
 use crate::loader::TextureStorage;
 use crate::math::{Mat4, Vec2, Vec3, Vec4};
 use crate::mesh::{Mesh, Vertex};
-use crate::primitives::Frustum;
-use crate::transform;
-
-const MAX_RENDERER_BINDING: usize = 100;
+use crate::shader::{VertexInput, VertexOutPut, VertexShader};
 
 #[derive(Default)]
 pub struct Renderer {
     pub camera: Camera,
-    pub bindings: TextureStorage,
     pub frame_buffer: Vec<u8>,
     pub depth_buffer: Vec<f32>,
-    // 保留齐次坐标下的w值，其实就是视图空间中的z值
+    // 保留齐次坐标下的w值，其实就是视图空间中的 -z 值
     pub w_buffer: Vec<f32>,
+    pub bind_groups: HashMap<usize, BindGroup>,
 }
 impl Renderer {
     pub fn new() -> Self {
@@ -154,8 +150,8 @@ impl Renderer {
         }
     }
 
-    pub fn set_binding(&mut self, index: usize, binding: TextureStorage) {
-        self.bindings = binding;
+    pub fn set_bind_group(&mut self, index: usize, group: BindGroup) {
+        self.bind_groups.insert(index, group);
     }
     // 光栅化
     pub fn rasterization(&mut self, triangle: &[Vertex]) {

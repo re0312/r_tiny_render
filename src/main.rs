@@ -1,3 +1,4 @@
+mod bind_group;
 mod camera;
 mod color;
 mod loader;
@@ -6,17 +7,20 @@ mod math;
 mod mesh;
 mod primitives;
 mod render;
+mod shader;
 mod texture;
 mod transform;
 
 #[cfg(test)]
 mod tests {
+    use crate::bind_group::BindGroup;
     use crate::camera::{Camera, Viewport};
     use crate::color::Color;
     use crate::loader::load_gltf;
     use crate::math::{Mat4, Vec3, Vec4};
     use crate::mesh::Vertex;
     use crate::render::Renderer;
+    use crate::shader::{VertexInput, VertexOutPut, VertexShader};
     use crate::transform::Transform;
 
     fn create_render() -> Renderer {
@@ -261,9 +265,8 @@ mod tests {
         .unwrap();
     }
 
-
     #[test]
-    fn test_texture_2() {
+    fn test_texture_robot() {
         let mut renderer = create_render();
         renderer.camera.transform =
             Transform::from_xyz(0., 0., 20.).looking_at([0., 0., 0.].into(), Vec3::Y);
@@ -287,5 +290,21 @@ mod tests {
         .unwrap();
     }
 
+    #[test]
+    fn test_custum_shader() {
+        let mut renderer = create_render();
+        let a = VertexInput {
+            vertex_index: 0,
+            instance_index: 0,
+            location: Vec::new(),
+        };
+        let shader: VertexShader = |v: VertexInput, group: &BindGroup| {
+            return VertexOutPut {
+                position: Vec4::ZERO,
+                location: Vec::new(),
+            };
+        };
+        shader(a, &renderer.bind_group);
+    }
 }
 fn main() {}
