@@ -10,11 +10,9 @@ pub struct Vertex {
     // 位置坐标（齐次坐标）
     pub position: Vec4,
     // 法线向量
-    pub normal: Option<Vec3>,
+    pub normal: Vec3,
     // 纹理坐标
-    pub texcoord: Option<Vec2>,
-    // 顶点颜色
-    pub color: Option<Color>,
+    pub texcoord: Vec2,
 }
 #[derive(Clone, Debug, Default)]
 pub struct Mesh {
