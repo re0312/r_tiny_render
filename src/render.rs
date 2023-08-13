@@ -1,19 +1,14 @@
-use std::default;
-use std::ops::Range;
-
-use gltf::image::Format;
+use bytemuck::{cast, cast_slice, cast_vec};
 
 use crate::bind_group::{self, BindGroup, BindingType, Texture};
 use crate::camera::{Camera, CameraProjection};
 use crate::color::Color;
-use crate::format::{FormatSize, TextureFormat, VertexFormat};
-use crate::math::{Mat4, Vec2, Vec3, Vec4};
+use crate::format::{TextureFormat, VertexFormat};
+use crate::math::{Mat3, Mat4, Vec2, Vec3, Vec4};
 use crate::mesh::Vertex;
-use crate::shader::{FragmentShader, Location, VertexInput, VertexShader};
+use crate::shader::{FragmentInput, FragmentShader, ShaderType, VertexInput, VertexShader};
+use std::ops::Range;
 
-pub trait Buffer {}
-
-pub struct VertexBufferLayout {}
 pub struct Renderer<'a> {
     pub state: RendererDescriptor<'a>,
     pub frame_buffer: Vec<u8>,
@@ -41,6 +36,17 @@ pub struct RenderSurface {
     pub height: usize,
     pub format: TextureFormat,
 }
+impl RenderSurface {
+    #[rustfmt::skip]
+    fn ndc2viewport_matrix(&self) -> Mat4 {
+        Mat4::from_rows_slice(&[
+            self.width as f32/2. , 0. , 0. , self.width as f32/2.,
+            0. , self.height as f32/2. , 0. , self.height as f32/2.,
+            0. , 0. , 1. , 0.,
+            0. , 0. , 0. , 1.
+        ])
+    }
+}
 // 当前暂时先就不区分pipeline 和 renderpass
 pub struct RendererDescriptor<'a> {
     pub surface: RenderSurface,
@@ -61,14 +67,6 @@ impl<'a> Renderer<'a> {
         }
     }
 
-    // pub fn with_camera(mut self, camera: Camera) -> Self {
-    //     self.frame_buffer = vec![0; camera.viewport.size() as usize * 3];
-    //     self.depth_buffer = vec![0.; camera.viewport.size() as usize];
-    //     self.w_buffer = vec![1. / 3.; 3];
-    //     self.camera = camera;
-    //     self
-    // }
-
     pub fn set_vertex_buffer(&mut self, vertex_buffer: &'a [u8]) {
         self.vertex_buffer = vertex_buffer;
     }
@@ -82,6 +80,7 @@ impl<'a> Renderer<'a> {
 
     // https://gpuweb.github.io/gpuweb/#rendering-operations
     pub fn draw(&mut self, vertices: Range<u32>) {
+        let index_count = vertices.len();
         // 通过顶点布局计算顶点缓冲区中每个顶点的数据长度（字节）
         let vertex_len = self
             .state
@@ -91,29 +90,170 @@ impl<'a> Renderer<'a> {
             .map(|format| format.size())
             .sum::<usize>();
         assert!(
-            vertex_len == 0 || vertices.len() > self.vertex_buffer.len() / vertex_len,
+            vertex_len == 0 || index_count >= self.vertex_buffer.len() / vertex_len,
             "out of bounds"
         );
-        for i in vertices {
+        let vertex_location_count = self.state.vertex.layout.len();
+        let mut vertex_shader_outputs = Vec::new();
+
+        for i in vertices.clone() {
             // 该顶点在顶点缓冲区中的索引
-            let vertex_buffer_offset = i * vertex_len as u32;
-            let mut vertex_locations: Vec<Box<dyn Location>> = Vec::new();
+            let mut vertex_buffer_offset = i as usize * vertex_len;
+            let mut vertex_locations: Vec<ShaderType> = Vec::new();
+
+            // 按照顶点的布局解析顶点用户自定义输入数据
             for format in self.state.vertex.layout {
-                let format_value: Box<dyn Location> = match format {
-                    VertexFormat::Float32 => Box::new(0.),
-                    VertexFormat::Float32x2 => Box::new(Vec2::ZERO),
-                    VertexFormat::Float32x3 => Box::new(Vec3::ZERO),
-                    VertexFormat::Float32x4 => Box::new(Vec4::ZERO),
-                    _ => Box::new(0.),
+                let format_value: ShaderType = match format {
+                    VertexFormat::Float32 => ShaderType::F32(
+                        cast_slice::<_, f32>(
+                            &self.vertex_buffer
+                                [vertex_buffer_offset..vertex_buffer_offset + format.size()],
+                        )[0],
+                    ),
+                    VertexFormat::Float32x2 => ShaderType::Vec2(
+                        std::convert::TryInto::<[f32; 2]>::try_into(cast_slice::<_, f32>(
+                            &self.vertex_buffer
+                                [vertex_buffer_offset..vertex_buffer_offset + format.size()],
+                        ))
+                        .unwrap()
+                        .into(),
+                    ),
+                    VertexFormat::Float32x3 => ShaderType::Vec3(
+                        std::convert::TryInto::<[f32; 3]>::try_into(cast_slice::<_, f32>(
+                            &self.vertex_buffer
+                                [vertex_buffer_offset..vertex_buffer_offset + format.size()],
+                        ))
+                        .unwrap()
+                        .into(),
+                    ),
+                    VertexFormat::Float32x4 => ShaderType::Vec4(
+                        std::convert::TryInto::<[f32; 4]>::try_into(cast_slice::<_, f32>(
+                            &self.vertex_buffer
+                                [vertex_buffer_offset..vertex_buffer_offset + format.size()],
+                        ))
+                        .unwrap()
+                        .into(),
+                    ),
+                    _ => panic!(""),
                 };
                 vertex_locations.push(format_value);
+                vertex_buffer_offset += format.size();
             }
+
+            // 创建顶点着色器输入
             let vertex_shader_input = VertexInput {
-                vertex_index: i,
+                vertex_index: i as u32,
                 // 暂时不支持实例化渲染，永远为0
                 instance_index: 0,
-                location: Vec::new(),
+                location: vertex_locations,
             };
+
+            //执行顶点着色器
+            let vertex_shader_ouput =
+                (self.state.vertex.shader)(vertex_shader_input, &self.bind_groups);
+
+            vertex_shader_outputs.push(vertex_shader_ouput)
+        }
+
+        for i in 0..vertices.len() / 3 {
+            // 图元组装 我们这里只支持基础的三角形 "triangle-list"
+            let primitive_list = &mut vertex_shader_outputs[i * 3..i * 3 + 2];
+            // 图元裁剪
+            // 顶点着色器会有输出 position(x,y,z,w)，我们在这里进行裁剪（其实就是齐次空间的视锥裁剪）
+            // −p.w ≤ p.x ≤ p.w
+            // −p.w ≤ p.y ≤ p.w
+            // 0 ≤ p.z ≤ p.w (depth clipping)
+            // tips ：按照标准 这里可以会产生新的顶点，但是 暂时未支持，图元有一个顶点在视锥范围外直接抛弃
+            if primitive_clipping(primitive_list.iter().map(|x| x.position).collect()) {
+                break;
+            }
+
+            // 光栅化阶段
+            // 齐次坐标系->设备标准坐标系（NDC）[透视除法]
+            let mut divisors = Vec::new();
+            primitive_list.iter_mut().for_each(|v| {
+                v.position.x /= v.position.w;
+                v.position.y /= v.position.w;
+                v.position.z /= v.position.w;
+                divisors.push(1. / v.position.w);
+            });
+
+            // NDC -> 帧缓冲坐标(或者说视窗坐标)
+            let frame_buffer_coordinates: Vec<Vec2> = primitive_list
+                .iter()
+                .map(|v| {
+                    (
+                        self.state.surface.width as f32 * 0.5 * (v.position.x + 1.),
+                        self.state.surface.height as f32 * 0.5 * (v.position.y + 1.),
+                    )
+                        .into()
+                })
+                .collect();
+            // 多边形光栅
+            // 顺时针标准 ，area > 0 说明是正面
+            let area: f32 = calculate_polygon_area(&frame_buffer_coordinates);
+
+            // aabb 包围盒，左上 右下
+            let aabb = calculate_polygon_aabb(&frame_buffer_coordinates);
+            // 这里暂时不支持超采样,所以一个像素对应一个fragment
+            for x in aabb[0]..=aabb[2] {
+                for y in aabb[1]..=aabb[3] {
+                    // 以坐标中心为像素坐标
+                    let fragment_position = Vec2::new(x as f32 + 0.5, y as f32 + 0.5);
+                    // for linear interpolation
+                    let barycenter =
+                        calculate_polygon_barycenter(fragment_position, &frame_buffer_coordinates);
+
+                    // for perspective interpolation
+                    let correct_barycenter = perspective_correct(&barycenter, &divisors);
+
+                    let fragment_w_divisor_perspective_interpolated =
+                        interpolate(&divisors, &correct_barycenter);
+                    let fragment_depth_perspective_interpolated = interpolate(
+                        &(primitive_list
+                            .iter()
+                            .map(|v| v.position.z)
+                            .collect::<Vec<f32>>()),
+                        &correct_barycenter,
+                    );
+
+                    let mut vertex_location_bundle: Vec<Vec<ShaderType>> = (0
+                        ..vertex_location_count)
+                        .map(|_index| Vec::new())
+                        .collect();
+                    for index in 0..vertex_location_count {}
+                    // 对顶点着色器的用户自定义输入进行插值 这里默认使用透视插值，暂时不支持其他插值
+                    let fragment_input_locations: Vec<ShaderType> = {
+                        primitive_list
+                            .iter()
+                            .fold(&mut vertex_location_bundle, |mut acc, v| {
+                                for index in 0..vertex_location_count {
+                                    acc[index].push(v.location[index]);
+                                }
+                                acc
+                            });
+
+                        for index in 0..vertex_location_bundle.len() {
+                            // let a = self.state.vertex.layout[index].size();
+                            let a: Vec<u8> = cast_vec(vertex_location_bundle[index]);
+                        }
+                        todo!()
+                    };
+                    let fragment_input = FragmentInput {
+                        front_facing: area > 0.,
+                        position: Vec4::new(
+                            fragment_position.x,
+                            fragment_position.y,
+                            fragment_depth_perspective_interpolated,
+                            fragment_w_divisor_perspective_interpolated,
+                        ),
+                        sample_index: 0, //暂时没有超采样
+                        sample_mask: 0,
+                        location: Vec::new(),
+                    };
+                    // 计算深度
+                }
+            }
         }
     }
 
@@ -477,10 +617,75 @@ pub fn barycentric_2d(p: Vec2, a: Vec2, b: Vec2, c: Vec2) -> Vec3 {
     [alpha, beta, gamma].into()
 }
 
-pub fn perspective_correct((alpha, beta, gamma): (f32, f32, f32), w: &Vec<f32>) -> Vec3 {
-    let w0 = w[0].recip() * alpha;
-    let w1 = w[1].recip() * beta;
-    let w2 = w[2].recip() * gamma;
-    let normalizer = 1.0 / (w0 + w1 + w2);
-    [w0 * normalizer, w1 * normalizer, w2 * normalizer].into()
+// pub fn perspective_correct((alpha, beta, gamma): (f32, f32, f32), w: &Vec<f32>) -> Vec3 {
+//     let w0 = w[0].recip() * alpha;
+//     let w1 = w[1].recip() * beta;
+//     let w2 = w[2].recip() * gamma;
+//     let normalizer = 1.0 / (w0 + w1 + w2);
+//     [w0 * normalizer, w1 * normalizer, w2 * normalizer].into()
+// }
+// 最简单的方法，图元有一个点不在视锥内就直接抛弃了，这样不会产生新的节点了
+fn primitive_clipping(vertex_positions: Vec<Vec4>) -> bool {
+    vertex_positions
+        .iter()
+        .any(|v| v.x > v.w || v.x < -v.w || v.y > v.w || v.y < -v.w || v.z > v.w || v.z < 0.)
+}
+
+// 多边形面积计算
+fn calculate_polygon_area(coordinates: &[Vec2]) -> f32 {
+    let mut area = 0.;
+    for i in 0..coordinates.len() {
+        area += coordinates[i].cross(coordinates[(i + 1) % coordinates.len()]);
+    }
+    0.5 * area
+}
+// 计算多边形aabb包围盒
+// 返回包围盒 左上 和 右下 坐标  [x1,y1,x2,y2]
+//屏幕左上角（0，0），右下角（width，height）
+fn calculate_polygon_aabb(coordinates: &[Vec2]) -> [u32; 4] {
+    let mut aabb = [u32::MAX, u32::MAX, 0, 0];
+    for coordinate in coordinates {
+        aabb[0] = aabb[0].min(coordinate.x.floor() as u32);
+        aabb[1] = aabb[1].min(coordinate.y.floor() as u32);
+        aabb[2] = aabb[2].max(coordinate.x.ceil() as u32);
+        aabb[3] = aabb[3].max(coordinate.y.ceil() as u32);
+    }
+    aabb
+}
+
+fn calculate_triangle_barycenter(triangel: &[Vec2]) -> Vec2 {
+    todo!()
+}
+// 计算点p对于平面多边形的重心坐标
+// https://gpuweb.github.io/gpuweb/#barycentric-coordinates
+fn calculate_polygon_barycenter(p: Vec2, polygon: &[Vec2]) -> Vec<f32> {
+    let polygon_len = polygon.len();
+    let mut res = Vec::new();
+    for i in 0..polygon_len {
+        let lamda = (p - polygon[i]).cross(polygon[(i + 1) % polygon_len] - polygon[i]);
+        res.push(lamda);
+    }
+    let sum: f32 = res.iter().sum();
+    res.iter().map(|v| v / sum).collect()
+}
+
+// 计算重心参数的矫正
+pub fn perspective_correct(barycenter: &[f32], divisors: &[f32]) -> Vec<f32> {
+    let iterator = (0..barycenter.len()).map(|i| barycenter[i] * divisors[i]);
+    let sum: f32 = iterator.clone().sum();
+    iterator.map(|x| x / sum).collect()
+}
+// 计算插值
+pub fn interpolate(val: &[f32], weights: &[f32]) -> f32 {
+    assert!(val.len() != weights.len());
+    (0..val.len()).fold(0., |acc, index| acc + val[index] * weights[index])
+}
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_calculate_aabb() {}
+    #[test]
+    fn test_calculate_area() {}
+    #[test]
+    fn test_calculate_barycenter() {}
 }

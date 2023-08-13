@@ -22,6 +22,7 @@ mod render;
 mod shader;
 mod texture;
 mod transform;
+mod primitive;
 
 // #[cfg(test)]
 // mod tests {
@@ -334,7 +335,7 @@ fn fragment_main(input: FragmentInput, bind_groups: &Vec<BindGroup>) -> Fragment
     }
 }
 fn main() {
-    let vertex_buffer = vec![[-0.5, 0., 0.], [0., 1., 0.], [0.5, 0., 0.]];
+    let vertex_buffer:Vec<[f32;3]> = vec![[-0.5, 0., 0.], [0., 1., 0.], [0.5, 0., 0.]];
     let desc = RendererDescriptor {
         surface: RenderSurface {
             format: format::TextureFormat::Rgba8Unorm,

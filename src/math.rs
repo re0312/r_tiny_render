@@ -1,4 +1,4 @@
-use std::ops::{Add, Mul, Neg, Sub};
+use std::ops::{Add, Div, DivAssign, Mul, Neg, Sub};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Vec2 {
@@ -75,6 +75,15 @@ impl Mul<f32> for Vec2 {
         }
     }
 }
+impl Div<f32> for Vec2 {
+    type Output = Self;
+    fn div(self, rhs: f32) -> Self::Output {
+        Self {
+            x: self.x / rhs,
+            y: self.y / rhs,
+        }
+    }
+}
 impl From<Vec2> for (f32, f32) {
     fn from(v: Vec2) -> Self {
         (v.x, v.y)
@@ -90,6 +99,12 @@ impl From<[f32; 2]> for Vec2 {
         Vec2::new(v[0], v[1])
     }
 }
+
+// impl From<&[f32; 2]> for Vec2 {
+//     fn from(v: &[f32; 2]) -> Self {
+//         Vec2::new(v[0], v[1])
+//     }
+// }
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Vec3 {
@@ -438,6 +453,14 @@ impl Mat3 {
     // 单位矩阵
     pub const IDENTITY: Self = Self::from_cols(Vec3::X, Vec3::Y, Vec3::Z);
 
+    pub const fn from_rows_slice(slice: &[f32]) -> Self {
+        assert!(slice.len() >= 16);
+        Self {
+            x_axis: Vec3::new(slice[0], slice[3], slice[6]),
+            y_axis: Vec3::new(slice[1], slice[4], slice[7]),
+            z_axis: Vec3::new(slice[2], slice[5], slice[8]),
+        }
+    }
     pub const fn from_cols(x_axis: Vec3, y_axis: Vec3, z_axis: Vec3) -> Self {
         Self {
             x_axis,

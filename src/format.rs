@@ -1,7 +1,3 @@
-pub trait FormatSize {
-    fn size(&self) -> usize;
-}
-
 // 顶点类型 在着色器阶段会被映射成wgsl类型
 pub enum VertexFormat {
     // One single-precision float (f32). `float` in shaders.
@@ -26,6 +22,15 @@ impl VertexFormat {
             _ => 0,
         }
     }
+    // pub fn into(&self) -> Option<ShaderType> {
+    //     match self {
+    //         VertexFormat::Float32 => Some(ShaderType::F32),
+    //         VertexFormat::Float32x2 => 8,
+    //         VertexFormat::Float32x3 => 12,
+    //         VertexFormat::Float32x4 => 16,
+    //         _ => None,
+    //     }
+    // }
 }
 
 // 按照webgpu标准实施，目前只支持rgba norm 格式
