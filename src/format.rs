@@ -22,18 +22,11 @@ impl VertexFormat {
             _ => 0,
         }
     }
-    // pub fn into(&self) -> Option<ShaderType> {
-    //     match self {
-    //         VertexFormat::Float32 => Some(ShaderType::F32),
-    //         VertexFormat::Float32x2 => 8,
-    //         VertexFormat::Float32x3 => 12,
-    //         VertexFormat::Float32x4 => 16,
-    //         _ => None,
-    //     }
-    // }
 }
 
 // 按照webgpu标准实施，目前只支持rgba norm 格式
+/// Corresponds to [WebGPU `GPUTextureFormat`](
+/// https://gpuweb.github.io/gpuweb/#enumdef-gputextureformat).
 pub enum TextureFormat {
     /// Red, green, blue, and alpha channels. 8 bit integer per channel. [0, 255] converted to/from float [0, 1] in shader.
     Rgba8Unorm,

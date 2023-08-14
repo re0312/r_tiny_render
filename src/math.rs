@@ -1,4 +1,6 @@
-use std::ops::{Add, Div, DivAssign, Mul, Neg, Sub};
+use std::ops::{Add, AddAssign, Div, DivAssign, Mul, Neg, Sub};
+
+use crate::shader::ShaderType;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Vec2 {
@@ -257,6 +259,14 @@ impl From<[f32; 3]> for Vec3 {
         Vec3::new(v[0], v[1], v[2])
     }
 }
+impl From<ShaderType> for Vec3 {
+    fn from(value: ShaderType) -> Self {
+        match value {
+            ShaderType::Vec3(v) => v,
+            _ => Vec3::ZERO,
+        }
+    }
+}
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Vec4 {
@@ -337,6 +347,9 @@ impl Vec4 {
             y: self.y,
         }
     }
+    pub fn x(&self) -> f32 {
+        self.x
+    }
 }
 impl Add<Vec4> for Vec4 {
     type Output = Self;
@@ -347,6 +360,11 @@ impl Add<Vec4> for Vec4 {
             z: self.z + other.z,
             w: self.w + other.w,
         }
+    }
+}
+impl AddAssign<Vec4> for Vec4 {
+    fn add_assign(&mut self, rhs: Vec4) {
+        *self = *self + rhs;
     }
 }
 impl Sub<Vec4> for Vec4 {
@@ -377,6 +395,14 @@ impl From<[f32; 4]> for Vec4 {
     }
 }
 
+impl From<ShaderType> for Vec4 {
+    fn from(value: ShaderType) -> Self {
+        match value {
+            ShaderType::Vec4(v) => v,
+            _ => Vec4::ZERO,
+        }
+    }
+}
 // 矩阵为列存储
 pub struct Mat2 {
     pub x_axis: Vec2,

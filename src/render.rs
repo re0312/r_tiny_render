@@ -1,11 +1,9 @@
 use bytemuck::{cast, cast_slice, cast_vec};
 
-use crate::bind_group::{self, BindGroup, BindingType, Texture};
-use crate::camera::{Camera, CameraProjection};
+use crate::bind_group::{BindGroup, BindingType, Texture};
 use crate::color::Color;
 use crate::format::{TextureFormat, VertexFormat};
 use crate::math::{Mat3, Mat4, Vec2, Vec3, Vec4};
-use crate::mesh::Vertex;
 use crate::shader::{FragmentInput, FragmentShader, ShaderType, VertexInput, VertexShader};
 use std::ops::Range;
 
@@ -35,17 +33,6 @@ pub struct RenderSurface {
     pub width: usize,
     pub height: usize,
     pub format: TextureFormat,
-}
-impl RenderSurface {
-    #[rustfmt::skip]
-    fn ndc2viewport_matrix(&self) -> Mat4 {
-        Mat4::from_rows_slice(&[
-            self.width as f32/2. , 0. , 0. , self.width as f32/2.,
-            0. , self.height as f32/2. , 0. , self.height as f32/2.,
-            0. , 0. , 1. , 0.,
-            0. , 0. , 0. , 1.
-        ])
-    }
 }
 // 当前暂时先就不区分pipeline 和 renderpass
 pub struct RendererDescriptor<'a> {
@@ -93,8 +80,9 @@ impl<'a> Renderer<'a> {
             vertex_len == 0 || index_count >= self.vertex_buffer.len() / vertex_len,
             "out of bounds"
         );
-        let vertex_location_count = self.state.vertex.layout.len();
+        // 顶点着色器输出
         let mut vertex_shader_outputs = Vec::new();
+        // 顶点着色器输出的布局
 
         for i in vertices.clone() {
             // 该顶点在顶点缓冲区中的索引
@@ -155,9 +143,20 @@ impl<'a> Renderer<'a> {
             vertex_shader_outputs.push(vertex_shader_ouput)
         }
 
+        let vertex_shader_ouput_layouts: Vec<VertexFormat> = vertex_shader_outputs[0]
+            .location
+            .iter()
+            .map(|&ty| match ty {
+                ShaderType::F32(_v) => VertexFormat::Float32,
+                ShaderType::Vec2(_v) => VertexFormat::Float32x2,
+                ShaderType::Vec3(_v) => VertexFormat::Float32x3,
+                ShaderType::Vec4(_v) => VertexFormat::Float32x4,
+            })
+            .collect();
+
         for i in 0..vertices.len() / 3 {
             // 图元组装 我们这里只支持基础的三角形 "triangle-list"
-            let primitive_list = &mut vertex_shader_outputs[i * 3..i * 3 + 2];
+            let primitive_list = &mut vertex_shader_outputs[i * 3..i * 3 + 3];
             // 图元裁剪
             // 顶点着色器会有输出 position(x,y,z,w)，我们在这里进行裁剪（其实就是齐次空间的视锥裁剪）
             // −p.w ≤ p.x ≤ p.w
@@ -190,23 +189,28 @@ impl<'a> Renderer<'a> {
                 })
                 .collect();
             // 多边形光栅
-            // 顺时针标准 ，area > 0 说明是正面
+            // cw 顺时针标准 ，area > 0 说明是正面，可以用来作为背面剔除的判断条件
             let area: f32 = calculate_polygon_area(&frame_buffer_coordinates);
 
             // aabb 包围盒，左上 右下
             let aabb = calculate_polygon_aabb(&frame_buffer_coordinates);
             // 这里暂时不支持超采样,所以一个像素对应一个fragment
-            for x in aabb[0]..=aabb[2] {
-                for y in aabb[1]..=aabb[3] {
+            for x in aabb[0]..aabb[2].clamp(0, self.state.surface.width) {
+                for y in aabb[1]..aabb[3].clamp(0, self.state.surface.height) {
                     // 以坐标中心为像素坐标
                     let fragment_position = Vec2::new(x as f32 + 0.5, y as f32 + 0.5);
                     // for linear interpolation
                     let barycenter =
                         calculate_polygon_barycenter(fragment_position, &frame_buffer_coordinates);
+                    // 验证当前像素点是否在多边形里面
+                    if barycenter.iter().any(|&v| v < 0.) {
+                        continue;
+                    }
 
                     // for perspective interpolation
                     let correct_barycenter = perspective_correct(&barycenter, &divisors);
 
+                    // 计算透视插值下的w因子和深度
                     let fragment_w_divisor_perspective_interpolated =
                         interpolate(&divisors, &correct_barycenter);
                     let fragment_depth_perspective_interpolated = interpolate(
@@ -217,27 +221,22 @@ impl<'a> Renderer<'a> {
                         &correct_barycenter,
                     );
 
-                    let mut vertex_location_bundle: Vec<Vec<ShaderType>> = (0
-                        ..vertex_location_count)
-                        .map(|_index| Vec::new())
-                        .collect();
-                    for index in 0..vertex_location_count {}
                     // 对顶点着色器的用户自定义输入进行插值 这里默认使用透视插值，暂时不支持其他插值
                     let fragment_input_locations: Vec<ShaderType> = {
-                        primitive_list
-                            .iter()
-                            .fold(&mut vertex_location_bundle, |mut acc, v| {
-                                for index in 0..vertex_location_count {
-                                    acc[index].push(v.location[index]);
-                                }
+                        let fragment_location_vec4 = primitive_list.iter().enumerate().fold(
+                            vec![Vec4::ZERO; vertex_shader_ouput_layouts.len()],
+                            |mut acc, (vindex, v)| {
+                                self.shader_to_vec4(&v.location)
+                                    .into_iter()
+                                    .enumerate()
+                                    .for_each(|(index, v)| {
+                                        acc[index] += v * correct_barycenter[vindex]
+                                    });
                                 acc
-                            });
+                            },
+                        );
 
-                        for index in 0..vertex_location_bundle.len() {
-                            // let a = self.state.vertex.layout[index].size();
-                            let a: Vec<u8> = cast_vec(vertex_location_bundle[index]);
-                        }
-                        todo!()
+                        self.vec4_to_shader(fragment_location_vec4, &vertex_shader_ouput_layouts)
                     };
                     let fragment_input = FragmentInput {
                         front_facing: area > 0.,
@@ -249,23 +248,42 @@ impl<'a> Renderer<'a> {
                         ),
                         sample_index: 0, //暂时没有超采样
                         sample_mask: 0,
-                        location: Vec::new(),
+                        location: fragment_input_locations,
                     };
-                    // 计算深度
+                    // 顶点着色器
+                    let fragment_output =
+                        (self.state.fragment.shader)(fragment_input, &self.bind_groups);
+
+                    let fragment_depth = fragment_output.frag_depth.clamp(0.0, 1.0);
+                    // 深度测试
+                    // z 值从 0-1 ,这里使用bevy（因为bevy使用reverse z）的标准，默认越大越近
+                    // 当然这里理论上应该是可以配置的，对应wgpu配置项  depth_compare: CompareFunction::GreaterEqual,
+                    if fragment_depth <= self.depth_buffer[y * self.state.surface.width + x] {
+                        break;
+                    }
+                    self.depth_buffer[y * self.state.surface.width + x] = fragment_depth;
+                    // 着色器输出loaction(0)是对应的color
+                    let fragment_color = fragment_output.location[0];
+                    let color = match fragment_color {
+                        ShaderType::Vec4(v) => Color::from_vec4(v),
+                        _ => panic!("error fragment output location format"),
+                    };
+                    // 还有模版测试 颜色混合等未实施
+                    self.draw_pixel(x, y, color);
                 }
             }
         }
     }
 
-    pub fn draw_pixel(&mut self, x: usize, mut y: usize, color: Color) {
+    pub fn draw_pixel(&mut self, x: usize, y: usize, color: Color) {
         let width = self.state.surface.width;
-        y = self.state.surface.height - y - 1;
         #[cfg(feature = "info")]
         println!("piexl:[({},{})]\n width:{}", x, y, width);
 
-        self.frame_buffer[(width * y + x) * 3] = (color.r * 255.) as u8;
-        self.frame_buffer[((width * y + x) * 3) + 1] = (color.g * 255.) as u8;
-        self.frame_buffer[((width * y + x) * 3) + 2] = (color.b * 255.) as u8;
+        self.frame_buffer[(width * y + x) * 4] = (color.r * 255.) as u8;
+        self.frame_buffer[((width * y + x) * 4) + 1] = (color.g * 255.) as u8;
+        self.frame_buffer[((width * y + x) * 4) + 2] = (color.b * 255.) as u8;
+        self.frame_buffer[((width * y + x) * 4) + 3] = (color.a * 255.) as u8;
     }
 
     pub fn draw_line(&mut self, line: (Vec2, Vec2)) -> Option<()> {
@@ -326,6 +344,31 @@ impl<'a> Renderer<'a> {
         None
     }
 
+    fn vec4_to_shader(&self, vecs: Vec<Vec4>, vertex_layouts: &[VertexFormat]) -> Vec<ShaderType> {
+        vertex_layouts
+            .iter()
+            .enumerate()
+            .map(|(index, format)| match format {
+                VertexFormat::Float32 => ShaderType::F32(vecs[index].x()),
+                VertexFormat::Float32x2 => ShaderType::Vec2(vecs[index].xy()),
+                VertexFormat::Float32x3 => ShaderType::Vec3(vecs[index].xyz()),
+                VertexFormat::Float32x4 => ShaderType::Vec4(vecs[index]),
+                _ => panic!(""),
+            })
+            .collect()
+    }
+
+    fn shader_to_vec4(&self, shaders: &Vec<ShaderType>) -> Vec<Vec4> {
+        shaders
+            .iter()
+            .map(|&shader| match shader {
+                ShaderType::F32(val) => Vec4::new(val, 0., 0., 0.),
+                ShaderType::Vec2(val) => Vec4::new(val.x, val.y, 0., 0.),
+                ShaderType::Vec3(val) => Vec4::new(val.x, val.y, val.z, 0.),
+                ShaderType::Vec4(val) => val,
+            })
+            .collect()
+    }
     // pub fn draw_triangle(&mut self, triangle: &mut [Vertex], model_matrix: Mat4) {
     //     // 视图变换
     //     let view_matrix = self.camera.get_view_matrix();
@@ -443,26 +486,6 @@ impl<'a> Renderer<'a> {
     //     println!("rasterization:{},{},{},{}", x_min, y_min, x_max, y_max);
     // }
 
-    // 齐次坐标下视锥裁剪
-    // pub fn homogeneous_clip(&self, triangle: &[Vertex]) -> bool {
-    //     // 三角形 任意一个点在近平面后面或者超过远平面范围 直接抛弃整个三角形,因为如果在平面上可能会导致除0错误
-    //     if triangle.iter().any(|v| {
-    //         v.position.w > self.camera.projectiton.far
-    //             || v.position.w < self.camera.projectiton.near
-    //     }) {
-    //         return false;
-    //     }
-    //     // 三角形每个点都不在视锥范围里面就裁剪掉，由于是已经是裁剪空间，所以直接比较x,y值和w的大小就行
-    //     // 要求 -w<x<w -w<y<w
-    //     else if triangle
-    //         .iter()
-    //         .all(|v| v.position.x.abs() > v.position.w || v.position.y.abs() > v.position.w)
-    //     {
-    //         return false;
-    //     }
-    //     return true;
-    // }
-
     // pub fn fragment_shader(&self, triangle: &[Vertex], color: Color, barycenter: Vec3) -> Color {
     //     let texcoord = if triangle[0].texcoord.is_some()
     //         && triangle[1].texcoord.is_some()
@@ -556,74 +579,6 @@ pub fn clip_line(
     }
 }
 
-//  通过向量叉乘判断点是否在三角形里
-fn inside_triangle(x: f32, y: f32, triangle: &[Vertex]) -> bool {
-    let mut flag = 0;
-    for i in 0..triangle.len() {
-        let x1 = triangle[i].position.x;
-        let y1 = triangle[i].position.y;
-        let x2 = triangle[(i + 1) % 3].position.x;
-        let y2 = triangle[(i + 1) % 3].position.y;
-        let v1 = Vec2::new(x2 - x1, y2 - y1);
-        let v2 = Vec2::new(x - x1, y - y1);
-        if v1.cross(v2).is_sign_negative() {
-            if flag == 1 {
-                return false;
-            } else {
-                flag = -1
-            }
-        } else {
-            if flag == -1 {
-                return false;
-            } else {
-                flag = 1
-            }
-        };
-    }
-    return true;
-}
-
-// 通过重心坐标判断点是否在三角形中
-fn inside_triangle_barcentric(barcentric: Vec3) -> bool {
-    barcentric.x > 0. && barcentric.y > 0. && barcentric.z > 0.
-}
-
-pub fn apply_matrix(triangle: &mut [Vertex], matrix: Mat4) {
-    for i in 0..triangle.len() {
-        triangle[i].position = matrix * triangle[i].position;
-    }
-}
-
-pub fn homogeneous_division(triangle: &mut [Vertex]) {
-    triangle.iter_mut().for_each(|x| {
-        x.position.x /= x.position.w;
-        x.position.y /= x.position.w;
-        x.position.z /= x.position.w;
-        x.position.w = 1.;
-    })
-}
-// 背面剔除，剔除所有顺时针的三角形
-pub fn back_face_culling(triangle: &[Vertex], view_dir: Vec3) -> bool {
-    let face_normal = (triangle[1].position.xyz() - triangle[0].position.xyz())
-        .cross(triangle[2].position.xyz() - triangle[1].position.xyz());
-    return face_normal.dot(view_dir) < 0.0;
-}
-
-pub fn barycentric_2d(p: Vec2, a: Vec2, b: Vec2, c: Vec2) -> Vec3 {
-    let double_triangle_area = (b - a).cross(c - a);
-    let alpha = (b - p).cross(c - p) / double_triangle_area;
-    let beta = (c - p).cross(a - p) / double_triangle_area;
-    let gamma = (a - p).cross(b - p) / double_triangle_area;
-    [alpha, beta, gamma].into()
-}
-
-// pub fn perspective_correct((alpha, beta, gamma): (f32, f32, f32), w: &Vec<f32>) -> Vec3 {
-//     let w0 = w[0].recip() * alpha;
-//     let w1 = w[1].recip() * beta;
-//     let w2 = w[2].recip() * gamma;
-//     let normalizer = 1.0 / (w0 + w1 + w2);
-//     [w0 * normalizer, w1 * normalizer, w2 * normalizer].into()
-// }
 // 最简单的方法，图元有一个点不在视锥内就直接抛弃了，这样不会产生新的节点了
 fn primitive_clipping(vertex_positions: Vec<Vec4>) -> bool {
     vertex_positions
@@ -642,20 +597,17 @@ fn calculate_polygon_area(coordinates: &[Vec2]) -> f32 {
 // 计算多边形aabb包围盒
 // 返回包围盒 左上 和 右下 坐标  [x1,y1,x2,y2]
 //屏幕左上角（0，0），右下角（width，height）
-fn calculate_polygon_aabb(coordinates: &[Vec2]) -> [u32; 4] {
-    let mut aabb = [u32::MAX, u32::MAX, 0, 0];
+fn calculate_polygon_aabb(coordinates: &[Vec2]) -> [usize; 4] {
+    let mut aabb = [usize::MAX, usize::MAX, 0, 0];
     for coordinate in coordinates {
-        aabb[0] = aabb[0].min(coordinate.x.floor() as u32);
-        aabb[1] = aabb[1].min(coordinate.y.floor() as u32);
-        aabb[2] = aabb[2].max(coordinate.x.ceil() as u32);
-        aabb[3] = aabb[3].max(coordinate.y.ceil() as u32);
+        aabb[0] = aabb[0].min(coordinate.x.floor() as usize);
+        aabb[1] = aabb[1].min(coordinate.y.floor() as usize);
+        aabb[2] = aabb[2].max(coordinate.x.ceil() as usize);
+        aabb[3] = aabb[3].max(coordinate.y.ceil() as usize);
     }
     aabb
 }
 
-fn calculate_triangle_barycenter(triangel: &[Vec2]) -> Vec2 {
-    todo!()
-}
 // 计算点p对于平面多边形的重心坐标
 // https://gpuweb.github.io/gpuweb/#barycentric-coordinates
 fn calculate_polygon_barycenter(p: Vec2, polygon: &[Vec2]) -> Vec<f32> {
@@ -677,15 +629,6 @@ pub fn perspective_correct(barycenter: &[f32], divisors: &[f32]) -> Vec<f32> {
 }
 // 计算插值
 pub fn interpolate(val: &[f32], weights: &[f32]) -> f32 {
-    assert!(val.len() != weights.len());
+    assert!(val.len() == weights.len());
     (0..val.len()).fold(0., |acc, index| acc + val[index] * weights[index])
-}
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn test_calculate_aabb() {}
-    #[test]
-    fn test_calculate_area() {}
-    #[test]
-    fn test_calculate_barycenter() {}
 }

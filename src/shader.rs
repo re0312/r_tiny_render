@@ -12,7 +12,32 @@ pub enum ShaderType {
     Vec3(Vec3),
     Vec4(Vec4),
 }
-unsafe impl NoUninit for ShaderType {}
+impl From<Vec4> for ShaderType {
+    fn from(value: Vec4) -> Self {
+        ShaderType::Vec4(value)
+    }
+}
+impl From<Vec3> for ShaderType {
+    fn from(value: Vec3) -> Self {
+        ShaderType::Vec3(value)
+    }
+}
+impl From<Vec2> for ShaderType {
+    fn from(value: Vec2) -> Self {
+        ShaderType::Vec2(value)
+    }
+}
+impl TryFrom<ShaderType> for f32 {
+    type Error = ();
+
+    fn try_from(value: ShaderType) -> Result<Self, Self::Error> {
+        if let ShaderType::F32(v) = value {
+            Ok(v)
+        } else {
+            Err(())
+        }
+    }
+}
 // 着色器输入包括 build-in input value（由上游生成，自动传递给着色器） 和 用户自定义的输入
 // 按照webgpu标准实施
 // https://www.w3.org/TR/WGSL/#built-in-output-value

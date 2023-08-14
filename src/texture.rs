@@ -52,6 +52,7 @@ impl Texture {
             self.data[index] as f32 / 255.,
             self.data[index + 1] as f32 / 255.,
             self.data[index + 2] as f32 / 255.,
+            1.,
         )
     }
 }
