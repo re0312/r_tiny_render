@@ -1,4 +1,7 @@
-// 顶点类型 在着色器阶段会被映射成wgsl类型
+// 顶点类型 在着色器阶段会被映射成wgsl类型#[derive(Debug, Clone)]
+
+#[derive(Copy, Clone, Debug, Hash, Eq, PartialEq)]
+
 pub enum VertexFormat {
     // One single-precision float (f32). `float` in shaders.
     Float32,

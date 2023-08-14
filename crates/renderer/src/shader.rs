@@ -1,9 +1,6 @@
-use bytemuck::NoUninit;
+use math::{Vec2, Vec3, Vec4};
 
-use crate::{
-    bind_group::BindGroup,
-    math::{Vec2, Vec3, Vec4},
-};
+use crate::bind_group::BindGroup;
 
 #[derive(Clone, Copy)]
 pub enum ShaderType {
@@ -17,9 +14,25 @@ impl From<Vec4> for ShaderType {
         ShaderType::Vec4(value)
     }
 }
+impl From<ShaderType> for Vec4 {
+    fn from(value: ShaderType) -> Self {
+        match value {
+            ShaderType::Vec4(v) => v,
+            _ => Vec4::ZERO,
+        }
+    }
+}
 impl From<Vec3> for ShaderType {
     fn from(value: Vec3) -> Self {
         ShaderType::Vec3(value)
+    }
+}
+impl From<ShaderType> for Vec3 {
+    fn from(value: ShaderType) -> Self {
+        match value {
+            ShaderType::Vec3(v) => v,
+            _ => Vec3::ZERO,
+        }
     }
 }
 impl From<Vec2> for ShaderType {

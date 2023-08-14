@@ -1,8 +1,7 @@
-use std::ops::{Add, AddAssign, Div, DivAssign, Mul, Neg, Sub};
+use std::ops::{Add, AddAssign, Div, Mul, Neg, Sub};
 
-use crate::shader::ShaderType;
-
-#[derive(Debug, Clone, Copy, Default)]
+#[repr(C)]
+#[derive(Copy, Clone, Debug, Default, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Vec2 {
     pub x: f32,
     pub y: f32,
@@ -108,7 +107,8 @@ impl From<[f32; 2]> for Vec2 {
 //     }
 // }
 
-#[derive(Debug, Clone, Copy, Default)]
+#[repr(C)]
+#[derive(Copy, Clone, Debug, Default, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Vec3 {
     pub x: f32,
     pub y: f32,
@@ -259,16 +259,9 @@ impl From<[f32; 3]> for Vec3 {
         Vec3::new(v[0], v[1], v[2])
     }
 }
-impl From<ShaderType> for Vec3 {
-    fn from(value: ShaderType) -> Self {
-        match value {
-            ShaderType::Vec3(v) => v,
-            _ => Vec3::ZERO,
-        }
-    }
-}
 
-#[derive(Debug, Clone, Copy, Default)]
+#[repr(C)]
+#[derive(Copy, Clone, Debug, Default, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Vec4 {
     pub x: f32,
     pub y: f32,
@@ -395,15 +388,9 @@ impl From<[f32; 4]> for Vec4 {
     }
 }
 
-impl From<ShaderType> for Vec4 {
-    fn from(value: ShaderType) -> Self {
-        match value {
-            ShaderType::Vec4(v) => v,
-            _ => Vec4::ZERO,
-        }
-    }
-}
 // 矩阵为列存储
+#[repr(C)]
+#[derive(Clone, Copy)]
 pub struct Mat2 {
     pub x_axis: Vec2,
     pub y_axis: Vec2,
@@ -468,6 +455,7 @@ impl Mul<Vec2> for Mat2 {
     }
 }
 
+#[repr(C)]
 #[derive(Clone, Copy, Debug)]
 pub struct Mat3 {
     pub x_axis: Vec3,
@@ -570,7 +558,8 @@ impl Mul<Mat3> for Mat3 {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[repr(C)]
+#[derive(Clone, Copy)]
 pub struct Mat4 {
     pub x_axis: Vec4,
     pub y_axis: Vec4,

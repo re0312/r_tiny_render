@@ -5,7 +5,8 @@ use crate::{
     transform::Transform,
 };
 
-#[derive(Clone, Copy, Debug, Default)]
+#[repr(C)]
+#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Vertex {
     // 位置坐标（齐次坐标）
     pub position: Vec4,

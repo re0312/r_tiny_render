@@ -1,0 +1,9 @@
+[package]
+name = "renderer"
+version = "0.1.0"
+edition = "2021"
+description = "implementation webgpu rendering standard"
+
+[dependencies]
+bytemuck = { version = "1.13.1", features = ["derive"] }
+math = { path = "../math", version = "0.1.0" }

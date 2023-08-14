@@ -1,10 +1,8 @@
-use bytemuck::{cast, cast_slice, cast_vec};
-
 use crate::bind_group::{BindGroup, BindingType, Texture};
-use crate::color::Color;
 use crate::format::{TextureFormat, VertexFormat};
-use crate::math::{Mat3, Mat4, Vec2, Vec3, Vec4};
 use crate::shader::{FragmentInput, FragmentShader, ShaderType, VertexInput, VertexShader};
+use bytemuck::cast_slice;
+use math::{Vec2, Vec4};
 use std::ops::Range;
 
 pub struct Renderer<'a> {
@@ -20,13 +18,13 @@ pub struct Renderer<'a> {
 }
 
 pub struct VertexState<'a> {
-    pub(crate) shader: VertexShader,
+    pub shader: VertexShader,
     // 这里直接简化掉顶点布局，layout数组表示顶点数据自定义的location的数量，每个location的长度由VertexFormta决定
-    pub(crate) layout: &'a [VertexFormat],
+    pub layout: &'a [VertexFormat],
 }
 
 pub struct FragmentState {
-    pub(crate) shader: FragmentShader,
+    pub shader: FragmentShader,
 }
 
 pub struct RenderSurface {
@@ -265,7 +263,7 @@ impl<'a> Renderer<'a> {
                     // 着色器输出loaction(0)是对应的color
                     let fragment_color = fragment_output.location[0];
                     let color = match fragment_color {
-                        ShaderType::Vec4(v) => Color::from_vec4(v),
+                        ShaderType::Vec4(v) => v,
                         _ => panic!("error fragment output location format"),
                     };
                     // 还有模版测试 颜色混合等未实施
@@ -275,15 +273,15 @@ impl<'a> Renderer<'a> {
         }
     }
 
-    pub fn draw_pixel(&mut self, x: usize, y: usize, color: Color) {
+    pub fn draw_pixel(&mut self, x: usize, y: usize, color: Vec4) {
         let width = self.state.surface.width;
         #[cfg(feature = "info")]
         println!("piexl:[({},{})]\n width:{}", x, y, width);
 
-        self.frame_buffer[(width * y + x) * 4] = (color.r * 255.) as u8;
-        self.frame_buffer[((width * y + x) * 4) + 1] = (color.g * 255.) as u8;
-        self.frame_buffer[((width * y + x) * 4) + 2] = (color.b * 255.) as u8;
-        self.frame_buffer[((width * y + x) * 4) + 3] = (color.a * 255.) as u8;
+        self.frame_buffer[(width * y + x) * 4] = (color.x * 255.) as u8;
+        self.frame_buffer[((width * y + x) * 4) + 1] = (color.y * 255.) as u8;
+        self.frame_buffer[((width * y + x) * 4) + 2] = (color.z * 255.) as u8;
+        self.frame_buffer[((width * y + x) * 4) + 3] = (color.w * 255.) as u8;
     }
 
     pub fn draw_line(&mut self, line: (Vec2, Vec2)) -> Option<()> {
@@ -331,9 +329,9 @@ impl<'a> Renderer<'a> {
             (x2..x1).rev().collect::<Vec<i32>>()
         } {
             if xy_reverse {
-                self.draw_pixel(y0 as usize, x0 as usize, Color::RED);
+                self.draw_pixel(y0 as usize, x0 as usize, Vec4::new(1.0, 0., 0., 1.));
             } else {
-                self.draw_pixel(x0 as usize, y0 as usize, Color::RED);
+                self.draw_pixel(x0 as usize, y0 as usize, Vec4::new(0., 1., 0., 1.));
             }
             delta += ky;
             if delta > middle {

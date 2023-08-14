@@ -1,30 +1,3 @@
-use bind_group::BindGroup;
-use format::VertexFormat;
-use math::{Vec3, Vec4};
-use render::{RenderSurface, RendererDescriptor, VertexState};
-use shader::{ShaderType, VertexInput, VertexOutPut};
-
-use crate::{
-    math::Vec2,
-    render::{FragmentState, Renderer},
-    shader::{FragmentInput, FragmentOutput, VertexShader},
-};
-
-mod bind_group;
-mod camera;
-mod color;
-mod format;
-// mod loader;
-mod material;
-mod math;
-mod mesh;
-mod primitive;
-mod primitives;
-mod render;
-mod shader;
-mod texture;
-mod transform;
-
 // #[cfg(test)]
 // mod tests {
 //     use crate::bind_group::BindGroup;
@@ -321,6 +294,12 @@ mod transform;
 //     }
 // }
 
+use math::{Vec2, Vec3, Vec4};
+use renderer::{
+    BindGroup, FragmentInput, FragmentOutput, FragmentState, RenderSurface, Renderer,
+    RendererDescriptor, ShaderType, VertexFormat, VertexInput, VertexOutPut, VertexState, TextureFormat,
+};
+
 fn vertex_main(vertex_input: VertexInput, bind_groups: &Vec<BindGroup>) -> VertexOutPut {
     let mut out = VertexOutPut {
         location: vec![ShaderType::Vec4(Vec4::ZERO), ShaderType::Vec2(Vec2::ONE)],
@@ -337,7 +316,6 @@ fn vertex_main(vertex_input: VertexInput, bind_groups: &Vec<BindGroup>) -> Verte
 
 fn fragment_main(input: FragmentInput, bind_groups: &Vec<BindGroup>) -> FragmentOutput {
     let in_color: Vec4 = input.location[0].into();
-    // println!("fragment_color:{:?}", in_color);
     FragmentOutput {
         frag_depth: 0.5,
         sample_mask: 2,
@@ -352,7 +330,7 @@ fn main() {
     ];
     let desc = RendererDescriptor {
         surface: RenderSurface {
-            format: format::TextureFormat::Rgba8Unorm,
+            format: TextureFormat::Rgba8Unorm,
             height: 1000,
             width: 1000,
         },

@@ -1,25 +1,20 @@
 [package]
-name = "r_tiny_render"
+name = "re_renderer"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-[lib]
-# crate-type = ["cdylib"]
 
-# [features]
-# info = []
+[workspace]
+members = ["crates/*"]
+
 
 [dependencies]
-cfg-if = "1"
-# wasm-bindgen = "0.2.86"
-# js-sys = "0.3.63"
-# console_error_panic_hook = { version = "0.1.7" }
-# web-sys = { version = "0.3.63", features = ["Document", "Window", "Element"] }
-image = "0.24.6"
-gltf = "1.1.0"
-# tobj = "4.0.0"
-bytemuck = "1.13.1"
+renderer = { path = "crates/renderer", version = "0.1.0" }
+math = { path = "crates/math", version = "0.1.0" }
+bytemuck = { version = "1.13.1", features = ["derive"] }
+image = "0.24.7"
 
-
-[dev-dependencies]
+[[example]]
+name = "triangle"
+path = "example/triangle.rs"
