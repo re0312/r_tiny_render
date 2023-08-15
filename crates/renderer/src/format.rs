@@ -16,6 +16,7 @@ pub enum VertexFormat {
 }
 
 impl VertexFormat {
+    #[inline]
     pub fn size(&self) -> usize {
         match self {
             VertexFormat::Float32 => 4,

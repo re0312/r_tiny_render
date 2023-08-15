@@ -129,23 +129,17 @@ impl Mesh {
     /// # Panics
     /// Panics if the attributes have different vertex counts.
     pub fn get_vertex_buffer_data(&self) -> Vec<u8> {
-        let mut vertex_size = 0;
-        let mut vertex_size: usize = self
+        let vertex_size: usize = self
             .attributes
             .values()
-            .map(|v| v.attribute.format.size())
-            .sum();
-        for attribute_data in self.attributes.values() {
-            let vertex_format = attribute_data.attribute.format;
-            vertex_size += vertex_format.size();
-        }
+            .fold(0, |acc, v| acc + v.attribute.format.size());
 
         let vertex_count = self.count_vertices();
         let mut attributes_interleaved_buffer = vec![0; vertex_count * vertex_size];
         // bundle into interleaved buffers
         let mut attribute_offset = 0;
         for attribute_data in self.attributes.values() {
-            let attribute_size = attribute_data.attribute.format.size() as usize;
+            let attribute_size = attribute_data.attribute.format.size();
             let attributes_bytes = attribute_data.values.get_bytes();
             for (vertex_index, attribute_bytes) in
                 attributes_bytes.chunks_exact(attribute_size).enumerate()
@@ -159,6 +153,13 @@ impl Mesh {
         }
 
         attributes_interleaved_buffer
+    }
+
+    pub fn get_vertex_buffer_layout(&self) -> Vec<VertexFormat> {
+        self.attributes.values().fold(Vec::new(), |mut acc, v| {
+            acc.push(v.attribute.format);
+            acc
+        })
     }
 }
 /// Contains an array where each entry describes a property of a single vertex.

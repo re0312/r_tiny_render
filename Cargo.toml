@@ -13,7 +13,7 @@ members = ["crates/*"]
 renderer = { path = "crates/renderer", version = "0.1.0" }
 math = { path = "crates/math", version = "0.1.0" }
 bytemuck = { version = "1.13.1", features = ["derive"] }
-image = "0.24.7"
+image = "0.24.6"
 
 [[example]]
 name = "triangle"
