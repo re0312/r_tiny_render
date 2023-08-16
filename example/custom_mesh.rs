@@ -1,8 +1,8 @@
 use math::{Vec2, Vec3, Vec4};
+use render::Mesh;
 use renderer::{
     BindGroup, FragmentInput, FragmentOutput, FragmentState, RenderSurface, Renderer,
-    RendererDescriptor, ShaderType, TextureFormat, VertexFormat, VertexInput, VertexOutput,
-    VertexState,
+    RendererDescriptor, ShaderType, TextureFormat, VertexInput, VertexOutput, VertexState,
 };
 
 fn vertex_main(vertex_input: VertexInput, bind_groups: &Vec<BindGroup>) -> VertexOutput {
@@ -27,12 +27,18 @@ fn fragment_main(input: FragmentInput, bind_groups: &Vec<BindGroup>) -> Fragment
         location: vec![ShaderType::Vec4(in_color)],
     }
 }
+
 fn main() {
-    let vertex_buffer: Vec<[f32; 7]> = vec![
-        [-0.5, 0., 0., 1., 0., 0., 1.],
-        [0., 1., 0., 0., 1., 0., 1.],
-        [0.5, 0., 0., 0., 0., 1., 1.],
-    ];
+    let mut mesh = Mesh::new();
+    mesh.insert_attribute(
+        Mesh::ATTRIBUTE_POSITION,
+        vec![[-0.5, 0., 0.], [0., -1., 0.], [0.5, 0., 0.]],
+    );
+    mesh.insert_attribute(
+        Mesh::ATTRIBUTE_COLOR,
+        vec![[1., 0., 0., 1.], [0., 1., 0., 1.], [0., 0., 1., 1.]],
+    );
+    println!("{:?}", mesh.get_vertex_buffer_layout());
     let desc = RendererDescriptor {
         surface: RenderSurface {
             format: TextureFormat::Rgba8Unorm,
@@ -41,7 +47,7 @@ fn main() {
         },
         vertex: VertexState {
             shader: vertex_main,
-            layout: &[VertexFormat::Float32x3, VertexFormat::Float32x4],
+            layout: &mesh.get_vertex_buffer_layout(),
         },
         fragment: FragmentState {
             shader: fragment_main,
@@ -49,10 +55,11 @@ fn main() {
         bind_group_count: 0,
     };
     let mut renderer = Renderer::new(desc);
-    renderer.set_vertex_buffer(bytemuck::cast_slice(&vertex_buffer));
-    renderer.draw(0..3);
+    let binding = mesh.get_vertex_buffer_data();
+    renderer.set_vertex_buffer(&binding);
+    renderer.draw(0..mesh.count_vertices() as u32);
     image::save_buffer(
-        "image_texture.png",
+        "image_mesh.png",
         &renderer.frame_buffer,
         1000,
         1000,

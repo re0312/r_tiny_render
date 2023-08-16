@@ -40,6 +40,7 @@ pub struct Mesh {
     /// Uses a BTreeMap because, unlike HashMap, it has a defined iteration order,
     /// which allows easy stable VertexBuffers (i.e. same buffer order)
     attributes: BTreeMap<MeshVertexAttributeId, MeshAttributeData>,
+    indices: Option<Vec<u32>>,
 }
 
 impl Mesh {
@@ -71,6 +72,7 @@ impl Mesh {
     pub fn new() -> Self {
         Mesh {
             attributes: Default::default(),
+            indices: None,
         }
     }
 
@@ -122,6 +124,20 @@ impl Mesh {
         vertex_count.unwrap_or(0)
     }
 
+    pub fn count_indices(&self) -> usize {
+        if let Some(indices) = &self.indices {
+            indices.len()
+        } else {
+            0
+        }
+    }
+    pub fn get_index_buffer_data(&self) -> Vec<u32> {
+        if let Some(indices) = &self.indices {
+            indices.clone()
+        } else {
+            Vec::new()
+        }
+    }
     /// Computes and returns the vertex data of the mesh as bytes.
     /// Therefore the attributes are located in the order of their [`MeshVertexAttribute::id`].
     /// This is used to transform the vertex data into a GPU friendly format.
@@ -155,6 +171,9 @@ impl Mesh {
         attributes_interleaved_buffer
     }
 
+    pub fn set_indices(&mut self, indices: Vec<u32>) {
+        self.indices = Some(indices);
+    }
     pub fn get_vertex_buffer_layout(&self) -> Vec<VertexFormat> {
         self.attributes.values().fold(Vec::new(), |mut acc, v| {
             acc.push(v.attribute.format);
@@ -202,5 +221,21 @@ impl From<&VertexAttributeValues> for VertexFormat {
             VertexAttributeValues::Float32x3(_) => VertexFormat::Float32x3,
             VertexAttributeValues::Float32x4(_) => VertexFormat::Float32x4,
         }
+    }
+}
+
+impl From<Vec<[f32; 2]>> for VertexAttributeValues {
+    fn from(value: Vec<[f32; 2]>) -> Self {
+        VertexAttributeValues::Float32x2(value)
+    }
+}
+impl From<Vec<[f32; 3]>> for VertexAttributeValues {
+    fn from(value: Vec<[f32; 3]>) -> Self {
+        VertexAttributeValues::Float32x3(value)
+    }
+}
+impl From<Vec<[f32; 4]>> for VertexAttributeValues {
+    fn from(value: Vec<[f32; 4]>) -> Self {
+        VertexAttributeValues::Float32x4(value)
     }
 }

@@ -12,9 +12,19 @@ members = ["crates/*"]
 [dependencies]
 renderer = { path = "crates/renderer", version = "0.1.0" }
 math = { path = "crates/math", version = "0.1.0" }
+render = { path = 'crates/render', version = "0.1.0" }
+loader = { path = "crates/loader", version = "0.1.0" }
 bytemuck = { version = "1.13.1", features = ["derive"] }
 image = "0.24.6"
 
 [[example]]
 name = "triangle"
 path = "example/triangle.rs"
+
+[[example]]
+name = "custom_mesh"
+path = "example/custom_mesh.rs"
+
+[[example]]
+name = "load_gltf"
+path = "example/load_gltf.rs"

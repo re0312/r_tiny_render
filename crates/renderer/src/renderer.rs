@@ -1,6 +1,7 @@
-use crate::bind_group::{BindGroup, BindingType, Texture};
+use crate::bind_group::BindGroup;
 use crate::format::{TextureFormat, VertexFormat};
 use crate::shader::{FragmentInput, FragmentShader, ShaderType, VertexInput, VertexShader};
+use crate::VertexOutput;
 use bytemuck::cast_slice;
 use math::{Vec2, Vec4};
 use std::ops::Range;
@@ -15,6 +16,7 @@ pub struct Renderer<'a> {
     pub bind_groups: Vec<BindGroup>,
     // 顶点缓冲区
     pub vertex_buffer: &'a [u8],
+    pub index_buffer: &'a [u32],
 }
 
 pub struct VertexState<'a> {
@@ -48,6 +50,7 @@ impl<'a> Renderer<'a> {
             w_buffer: vec![0.; pixel_count],
             bind_groups: vec![vec![]; desc.bind_group_count],
             vertex_buffer: &[],
+            index_buffer: &[],
             state: desc,
         }
     }
@@ -60,9 +63,12 @@ impl<'a> Renderer<'a> {
         self.bind_groups.insert(index, group);
     }
 
+    pub fn set_index_buffer(&mut self, index_buffer: &'a [u32]) {
+        self.index_buffer = index_buffer;
+    }
+
     // 按照WebGpu标准，渲染算法包括下面步骤
     // 索引解析 -- 顶点解析 -- 顶点处理 -- 图元组装 -- 图元裁剪 -- 光栅化 -- 片元解析 -- 深度解析 --绘制像素
-
     // https://gpuweb.github.io/gpuweb/#rendering-operations
     pub fn draw(&mut self, vertices: Range<u32>) {
         let index_count = vertices.len();
@@ -78,11 +84,46 @@ impl<'a> Renderer<'a> {
             vertex_len == 0 || index_count >= self.vertex_buffer.len() / vertex_len,
             "out of bounds"
         );
+        let vertices: Vec<u32> = vertices.collect();
+        // 顶点处理，这里直接对所有顶点进行计算
+        let vertex_shader_outputs = self.vertex_processing(&vertices);
+        // 图元组装和裁剪
+        let primitive_index_list =
+            self.primitive_assembly_clipping(&vertices, &vertex_shader_outputs);
+        // 光栅化
+        self.rasterization(vertex_shader_outputs, primitive_index_list);
+    }
+
+    pub fn draw_indexed(&mut self, indices: Range<u32>) {
+        let vertices = self.index_resolution(indices);
+        let vertex_shader_outputs = self.vertex_processing(&vertices);
+        let primitive_index_list =
+            self.primitive_assembly_clipping(&vertices, &vertex_shader_outputs);
+        self.rasterization(vertex_shader_outputs, primitive_index_list);
+    }
+
+    // 索引解析，返回代处理的顶点
+    pub fn index_resolution(&self, indices: Range<u32>) -> Vec<u32> {
+        indices.fold(Vec::new(), |mut acc, v| {
+            acc.push(self.index_buffer[v as usize]);
+            acc
+        })
+    }
+
+    //顶点处理
+    pub fn vertex_processing(&mut self, _vertices: &[u32]) -> Vec<VertexOutput> {
+        let vertex_len = self
+            .state
+            .vertex
+            .layout
+            .iter()
+            .map(|format| format.size())
+            .sum::<usize>();
+
+        let vertex_count = self.vertex_buffer.len() / vertex_len;
         // 顶点着色器输出
         let mut vertex_shader_outputs = Vec::new();
-        // 顶点着色器输出的布局
-
-        for i in vertices.clone() {
+        for i in 0..vertex_count {
             // 该顶点在顶点缓冲区中的索引
             let mut vertex_buffer_offset = i as usize * vertex_len;
             let mut vertex_locations: Vec<ShaderType> = Vec::new();
@@ -140,7 +181,44 @@ impl<'a> Renderer<'a> {
 
             vertex_shader_outputs.push(vertex_shader_ouput)
         }
+        vertex_shader_outputs
+    }
 
+    // 图元组装和裁剪
+    pub fn primitive_assembly_clipping(
+        &self,
+        vertices: &[u32],
+        vertex_shader_outputs: &[VertexOutput],
+    ) -> Vec<Vec<u32>> {
+        let mut primitive_list = Vec::new();
+        for i in 0..vertices.len() / 3 {
+            // 图元组装 我们这里只支持基础的三角形 "triangle-list"
+            let primitive = [
+                &vertex_shader_outputs[vertices[i * 3] as usize],
+                &vertex_shader_outputs[vertices[i * 3 + 1] as usize],
+                &vertex_shader_outputs[vertices[i + 3 + 2] as usize],
+            ];
+            // 图元裁剪
+            // 顶点着色器会有输出 position(x,y,z,w)，我们在这里进行裁剪（其实就是齐次空间的视锥裁剪）
+            // −p.w ≤ p.x ≤ p.w
+            // −p.w ≤ p.y ≤ p.w
+            // 0 ≤ p.z ≤ p.w (depth clipping)
+            // tips ：按照标准 这里可以会产生新的顶点，但是 暂时未支持，图元有一个顶点在视锥范围外直接抛弃
+            if primitive_clipping(primitive.iter().map(|x| x.position).collect()) {
+                continue;
+            }
+            primitive_list.push(vertices[i * 3..i * 3 + 3].to_vec());
+        }
+        primitive_list
+    }
+
+    // 光栅化
+    pub fn rasterization(
+        &mut self,
+        vertex_shader_outputs: Vec<VertexOutput>,
+        primitive_index_list: Vec<Vec<u32>>,
+    ) {
+        // 首先要得到vertex shader的输出布局，要映射到fragment shader的输入
         let vertex_shader_ouput_layouts: Vec<VertexFormat> = vertex_shader_outputs[0]
             .location
             .iter()
@@ -151,24 +229,17 @@ impl<'a> Renderer<'a> {
                 ShaderType::Vec4(_v) => VertexFormat::Float32x4,
             })
             .collect();
+        // 得到当前图元的 index 索引
+        for primitive_index in primitive_index_list {
+            // 拿到光栅图元
+            let mut primitive: Vec<VertexOutput> = primitive_index
+                .iter()
+                .map(|&v| vertex_shader_outputs[v as usize].clone())
+                .collect();
 
-        for i in 0..vertices.len() / 3 {
-            // 图元组装 我们这里只支持基础的三角形 "triangle-list"
-            let primitive_list = &mut vertex_shader_outputs[i * 3..i * 3 + 3];
-            // 图元裁剪
-            // 顶点着色器会有输出 position(x,y,z,w)，我们在这里进行裁剪（其实就是齐次空间的视锥裁剪）
-            // −p.w ≤ p.x ≤ p.w
-            // −p.w ≤ p.y ≤ p.w
-            // 0 ≤ p.z ≤ p.w (depth clipping)
-            // tips ：按照标准 这里可以会产生新的顶点，但是 暂时未支持，图元有一个顶点在视锥范围外直接抛弃
-            if primitive_clipping(primitive_list.iter().map(|x| x.position).collect()) {
-                break;
-            }
-
-            // 光栅化阶段
             // 齐次坐标系->设备标准坐标系（NDC）[透视除法]
             let mut divisors = Vec::new();
-            primitive_list.iter_mut().for_each(|v| {
+            primitive.iter_mut().for_each(|v| {
                 v.position.x /= v.position.w;
                 v.position.y /= v.position.w;
                 v.position.z /= v.position.w;
@@ -176,7 +247,7 @@ impl<'a> Renderer<'a> {
             });
 
             // NDC -> 帧缓冲坐标(或者说视窗坐标)
-            let frame_buffer_coordinates: Vec<Vec2> = primitive_list
+            let frame_buffer_coordinates: Vec<Vec2> = primitive
                 .iter()
                 .map(|v| {
                     (
@@ -186,12 +257,15 @@ impl<'a> Renderer<'a> {
                         .into()
                 })
                 .collect();
+
+            println!("{:?}", frame_buffer_coordinates);
             // 多边形光栅
             // cw 顺时针标准 ，area > 0 说明是正面，可以用来作为背面剔除的判断条件
             let area: f32 = calculate_polygon_area(&frame_buffer_coordinates);
 
             // aabb 包围盒，左上 右下
             let aabb = calculate_polygon_aabb(&frame_buffer_coordinates);
+
             // 这里暂时不支持超采样,所以一个像素对应一个fragment
             for x in aabb[0]..aabb[2].clamp(0, self.state.surface.width) {
                 for y in aabb[1]..aabb[3].clamp(0, self.state.surface.height) {
@@ -204,24 +278,19 @@ impl<'a> Renderer<'a> {
                     if barycenter.iter().any(|&v| v < 0.) {
                         continue;
                     }
-
-                    // for perspective interpolation
                     let correct_barycenter = perspective_correct(&barycenter, &divisors);
 
                     // 计算透视插值下的w因子和深度
                     let fragment_w_divisor_perspective_interpolated =
                         interpolate(&divisors, &correct_barycenter);
                     let fragment_depth_perspective_interpolated = interpolate(
-                        &(primitive_list
-                            .iter()
-                            .map(|v| v.position.z)
-                            .collect::<Vec<f32>>()),
+                        &(primitive.iter().map(|v| v.position.z).collect::<Vec<f32>>()),
                         &correct_barycenter,
                     );
 
-                    // 对顶点着色器的用户自定义输入进行插值 这里默认使用透视插值，暂时不支持其他插值
+                    // 对顶点着色器的用户自定义输入location进行插值给fragment shader 这里默认使用透视插值，暂时不支持其他插值
                     let fragment_input_locations: Vec<ShaderType> = {
-                        let fragment_location_vec4 = primitive_list.iter().enumerate().fold(
+                        let fragment_location_vec4 = primitive.iter().enumerate().fold(
                             vec![Vec4::ZERO; vertex_shader_ouput_layouts.len()],
                             |mut acc, (vindex, v)| {
                                 self.shader_to_vec4(&v.location)
@@ -236,6 +305,7 @@ impl<'a> Renderer<'a> {
 
                         self.vec4_to_shader(fragment_location_vec4, &vertex_shader_ouput_layouts)
                     };
+                    // 创建fragment shader输入
                     let fragment_input = FragmentInput {
                         front_facing: area > 0.,
                         position: Vec4::new(
@@ -248,7 +318,7 @@ impl<'a> Renderer<'a> {
                         sample_mask: 0,
                         location: fragment_input_locations,
                     };
-                    // 顶点着色器
+                    // 顶点着色器执行
                     let fragment_output =
                         (self.state.fragment.shader)(fragment_input, &self.bind_groups);
 
@@ -257,8 +327,9 @@ impl<'a> Renderer<'a> {
                     // z 值从 0-1 ,这里使用bevy（因为bevy使用reverse z）的标准，默认越大越近
                     // 当然这里理论上应该是可以配置的，对应wgpu配置项  depth_compare: CompareFunction::GreaterEqual,
                     if fragment_depth <= self.depth_buffer[y * self.state.surface.width + x] {
-                        break;
+                        continue;
                     }
+                    // 深度写入
                     self.depth_buffer[y * self.state.surface.width + x] = fragment_depth;
                     // 着色器输出loaction(0)是对应的color
                     let fragment_color = fragment_output.location[0];
@@ -367,150 +438,6 @@ impl<'a> Renderer<'a> {
             })
             .collect()
     }
-    // pub fn draw_triangle(&mut self, triangle: &mut [Vertex], model_matrix: Mat4) {
-    //     // 视图变换
-    //     let view_matrix = self.camera.get_view_matrix();
-    //     // 投影变换矩阵
-    //     let projection_matrix = self.camera.projectiton.get_projection_matrix();
-    //     // 窗口变换矩阵
-    //     let viewport_matrix = self.camera.viewport.get_viewport_matrix();
-
-    //     // 模型坐标系 -> 实际坐标系
-    //     apply_matrix(triangle, model_matrix);
-
-    //     // 世界坐标系 -> 视图坐标系
-    //     apply_matrix(triangle, view_matrix);
-
-    //     // 背面剔除顺时针的图元
-    //     if !back_face_culling(triangle, Vec3::NEG_Z) {
-    //         return;
-    //     }
-
-    //     // 投影矩阵 从视图坐标系 -> 齐次坐标系
-    //     apply_matrix(triangle, projection_matrix);
-
-    //     // let frustum = Frustum::from_view_projection(&projection_z_reverse_matrix);
-
-    //     // 齐次裁剪，这里没有视窗裁剪,这里不是太严谨
-    //     if !self.homogeneous_clip(triangle) {
-    //         return;
-    //     }
-
-    //     // 保留齐次坐标系下面的w值，后面需要透视矫正
-    //     self.w_buffer = triangle.iter().map(|v| v.position.w).collect::<Vec<f32>>();
-
-    //     // 齐次除法 齐次坐标系-> 设备标准坐标系
-    //     homogeneous_division(triangle);
-
-    //     // 设备标准坐标系 -> 视窗（屏幕）坐标系
-    //     apply_matrix(triangle, viewport_matrix);
-
-    //     // 光栅化处理
-    //     self.rasterization(triangle);
-    // }
-
-    // pub fn draw_wireframe(&mut self, triangle: &[Vertex]) {
-    //     for i in 0..triangle.len() {
-    //         self.draw_line((
-    //             triangle[i].position.xy(),
-    //             triangle[(i + 1) % 3].position.xy(),
-    //         ));
-    //     }
-    // }
-
-    // 光栅化
-    // pub fn rasterization(&mut self, triangle: &[Vertex]) {
-    //     let x_min = triangle
-    //         .iter()
-    //         .map(|x| x.position.x.ceil() as usize)
-    //         .min()
-    //         .unwrap()
-    //         .max(0);
-    //     let y_min = triangle
-    //         .iter()
-    //         .map(|x| x.position.y.ceil() as usize)
-    //         .min()
-    //         .unwrap()
-    //         .max(0);
-
-    //     let x_max = triangle
-    //         .iter()
-    //         .map(|x| x.position.x.ceil() as usize)
-    //         .max()
-    //         .unwrap()
-    //         .min(self.state.surface.width as usize);
-    //     let y_max = triangle
-    //         .iter()
-    //         .map(|x| x.position.y.ceil() as usize)
-    //         .max()
-    //         .unwrap()
-    //         .min(self.state.surface.height);
-    //     for x in x_min..x_max {
-    //         for y in y_min..y_max {
-    //             // 重心坐标
-    //             let barycenter = barycentric_2d(
-    //                 (x as f32, y as f32).into(),
-    //                 triangle[0].position.xy(),
-    //                 triangle[1].position.xy(),
-    //                 triangle[2].position.xy(),
-    //             );
-
-    //             if inside_triangle_barcentric(barycenter) {
-    //                 //经过透视矫正后的重心坐标
-    //                 let p_barycenter = perspective_correct(barycenter.into(), &self.w_buffer);
-    //                 // zbuffer
-    //                 let z_interpolation = triangle[0].position.z * p_barycenter.x
-    //                     + triangle[1].position.z * p_barycenter.y
-    //                     + triangle[2].position.z * p_barycenter.z;
-
-    //                 // reversed z z值越大越近，z为 0 是远平面
-    //                 if z_interpolation > self.depth_buffer[y * self.state.surface.height + x] {
-    //                     // 颜色插值
-    //                     let fragment_color = triangle[0].color.unwrap_or(Color::WHITE)
-    //                         * p_barycenter.x
-    //                         + triangle[1].color.unwrap_or(Color::WHITE) * p_barycenter.y
-    //                         + triangle[2].color.unwrap_or(Color::WHITE) * p_barycenter.z;
-    //                     self.depth_buffer[y * self.surface.height + x] = z_interpolation;
-
-    //                     let pixel_color =
-    //                         self.fragment_shader(triangle, fragment_color, p_barycenter);
-    //                     self.draw_pixel(x, y, pixel_color);
-    //                 }
-    //             }
-    //         }
-    //     }
-    //     // self.draw_wireframe(triangle);
-    //     #[cfg(target_featur = "info")]
-    //     println!("rasterization:{},{},{},{}", x_min, y_min, x_max, y_max);
-    // }
-
-    // pub fn fragment_shader(&self, triangle: &[Vertex], color: Color, barycenter: Vec3) -> Color {
-    //     let texcoord = if triangle[0].texcoord.is_some()
-    //         && triangle[1].texcoord.is_some()
-    //         && triangle[2].texcoord.is_some()
-    //     {
-    //         Some(
-    //             triangle[0].texcoord.unwrap() * barycenter.x
-    //                 + triangle[1].texcoord.unwrap() * barycenter.y
-    //                 + triangle[2].texcoord.unwrap() * barycenter.z,
-    //         )
-    //     } else {
-    //         None
-    //     };
-    //     let texcolor = if texcoord.is_some() {
-    //         self.bindings
-    //             .texture_id_map
-    //             .get(&3)
-    //             .map(|texture| texture.sample(texcoord.unwrap()))
-    //     } else {
-    //         None
-    //     };
-    //     return if texcolor.is_some() {
-    //         texcolor.unwrap()
-    //     } else {
-    //         color
-    //     };
-    // }
 }
 
 const INSIDE: u8 = 0; // 0000

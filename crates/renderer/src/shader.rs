@@ -40,6 +40,14 @@ impl From<Vec2> for ShaderType {
         ShaderType::Vec2(value)
     }
 }
+impl From<ShaderType> for Vec2 {
+    fn from(value: ShaderType) -> Self {
+        match value {
+            ShaderType::Vec2(v) => v,
+            _ => Vec2::ZERO,
+        }
+    }
+}
 impl TryFrom<ShaderType> for f32 {
     type Error = ();
 
@@ -64,7 +72,8 @@ pub struct VertexInput {
     pub location: Vec<ShaderType>,
 }
 
-pub struct VertexOutPut {
+#[derive(Clone)]
+pub struct VertexOutput {
     // build-in
     pub position: Vec4,
     //user-define
@@ -87,5 +96,5 @@ pub struct FragmentOutput {
 }
 
 type BindGroups = Vec<BindGroup>;
-pub type VertexShader = fn(VertexInput, &BindGroups) -> VertexOutPut;
+pub type VertexShader = fn(VertexInput, &BindGroups) -> VertexOutput;
 pub type FragmentShader = fn(FragmentInput, &BindGroups) -> FragmentOutput;

@@ -1,19 +1,21 @@
-pub trait BindingType {}
-pub struct EmptyBindingType;
-impl BindingType for EmptyBindingType {}
+#[derive(Debug, Clone)]
 pub struct Uniform {}
-impl BindingType for Uniform {}
+#[derive(Debug, Clone)]
 pub struct Storage {}
-impl BindingType for Storage {}
+#[derive(Debug, Clone)]
 pub struct Sampler {}
-impl BindingType for Sampler {}
-pub struct Texture {}
-impl BindingType for Texture {}
+#[derive(Debug, Clone)]
+pub struct Texture {
 
-pub type BindGroup = Vec<Box<dyn BindingType>>;
 
-impl Clone for Box<dyn BindingType> {
-    fn clone(&self) -> Self {
-        return Box::new(EmptyBindingType) as Box<dyn BindingType>;
-    }
 }
+
+#[derive(Debug, Clone)]
+pub enum BindType {
+    // u32存储uniform对应的索引
+    Uniform(u32),
+    Sampler(Sampler),
+    Texture(Texture),
+}
+
+pub type BindGroup = Vec<BindType>;

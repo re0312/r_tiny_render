@@ -7,7 +7,7 @@
 //     use crate::math::{Mat4, Vec3, Vec4};
 //     use crate::mesh::Vertex;
 //     use crate::render::Renderer;
-//     use crate::shader::{VertexInput, VertexOutPut, VertexShader};
+//     use crate::shader::{VertexInput, VertexOutput, VertexShader};
 //     use crate::transform::Transform;
 
 //     fn create_render() -> Renderer {
@@ -285,7 +285,7 @@
 //             location: Vec::new(),
 //         };
 //         // let shader: VertexShader = |v: VertexInput, group: &BindGroup| {
-//         //     return VertexOutPut {
+//         //     return VertexOutput {
 //         //         position: Vec4::ZERO,
 //         //         location: Vec::new(),
 //         //     };
@@ -297,11 +297,11 @@
 use math::{Vec2, Vec3, Vec4};
 use renderer::{
     BindGroup, FragmentInput, FragmentOutput, FragmentState, RenderSurface, Renderer,
-    RendererDescriptor, ShaderType, VertexFormat, VertexInput, VertexOutPut, VertexState, TextureFormat,
+    RendererDescriptor, ShaderType, VertexFormat, VertexInput, VertexOutput, VertexState, TextureFormat,
 };
 
-fn vertex_main(vertex_input: VertexInput, bind_groups: &Vec<BindGroup>) -> VertexOutPut {
-    let mut out = VertexOutPut {
+fn vertex_main(vertex_input: VertexInput, bind_groups: &Vec<BindGroup>) -> VertexOutput {
+    let mut out = VertexOutput {
         location: vec![ShaderType::Vec4(Vec4::ZERO), ShaderType::Vec2(Vec2::ONE)],
         position: Vec4::ONE,
     };
