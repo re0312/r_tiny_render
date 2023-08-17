@@ -4,6 +4,11 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+# inner dependencies
 renderer = { path = "../renderer", version = "0.1.0" }
 math = { path = "../math", version = "0.1.0" }
+
+
+# third part dependencies
 bytemuck = { version = "1.13.1", features = ["derive"] }
+bitflags = "2.3"

@@ -1,5 +1,7 @@
 // 顶点类型 在着色器阶段会被映射成wgsl类型#[derive(Debug, Clone)]
 
+use std::default;
+
 #[derive(Copy, Clone, Debug, Hash, Eq, PartialEq)]
 
 pub enum VertexFormat {
@@ -31,14 +33,20 @@ impl VertexFormat {
 // 按照webgpu标准实施，目前只支持rgba norm 格式
 /// Corresponds to [WebGPU `GPUTextureFormat`](
 /// https://gpuweb.github.io/gpuweb/#enumdef-gputextureformat).
+#[derive(Clone, Copy, Debug, Default)]
 pub enum TextureFormat {
     /// Red, green, blue, and alpha channels. 8 bit integer per channel. [0, 255] converted to/from float [0, 1] in shader.
+    #[default]
     Rgba8Unorm,
+    Rgb8Unorm,
+    R8Unorm,
 }
 impl TextureFormat {
     pub fn size(&self) -> usize {
         match self {
             TextureFormat::Rgba8Unorm => 4,
+            TextureFormat::R8Unorm => 1,
+            TextureFormat::Rgb8Unorm => 3,
         }
     }
 }

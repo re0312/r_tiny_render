@@ -1,6 +1,8 @@
-use render::Mesh;
+use gltf::image;
+use render::{Mesh, StandardMaterial};
+use renderer::{Texture, TextureFormat};
 
-pub fn load_gltf(path: &str) -> Vec<Mesh> {
+pub fn load_gltf(path: &str) -> (Vec<Mesh>, Vec<StandardMaterial>) {
     let (document, buffers, images) = gltf::import(path).unwrap();
 
     // 加载mesh
@@ -58,37 +60,29 @@ pub fn load_gltf(path: &str) -> Vec<Mesh> {
             meshs.push(mesh);
         }
     }
-    meshs
 
-    // 纹理加载
-    // let mut textures = Vec::new();
-    // for texture in document.textures() {
-    //     let source = texture.source();
-    //     let sampler = texture.sampler();
-    //     let image = images.get(source.index()).unwrap();
-
-    //     let texture = Texture {
-    //         id: texture.index(),
-    //         width: image.width,
-    //         height: image.height,
-    //         format: image.format,
-    //         data: image.pixels.clone(),
-    //         sampler: Sampler {
-    //             mag_filter: sampler.mag_filter(),
-    //             min_filter: sampler.min_filter(),
-    //             wrap_s: sampler.wrap_s(),
-    //             wrap_t: sampler.wrap_t(),
-    //         },
-    //     };
-    //     textures.push(texture);
-    // }
-    // (
-    //     meshs,
-    //     TextureStorage {
-    //         texture_id_map: textures
-    //             .into_iter()
-    //             .map(|textrue| (textrue.id, textrue))
-    //             .collect(),
-    //     },
-    // )
+    // 加载纹理
+    let mut materials = Vec::new();
+    for material in document.materials() {
+        let pbr = material.pbr_metallic_roughness();
+        pbr.base_color_texture().map(|info| {
+            let mut material = StandardMaterial::default();
+            let source = info.texture().source();
+            let image = images.get(source.index()).unwrap();
+            let texture = Texture {
+                width: image.width,
+                height: image.height,
+                format: match image.format {
+                    image::Format::R8 => TextureFormat::R8Unorm,
+                    image::Format::R8G8B8 => TextureFormat::Rgb8Unorm,
+                    image::Format::R8G8B8A8 => TextureFormat::Rgba8Unorm,
+                    _ => TextureFormat::Rgba8Unorm,
+                },
+                data: image.pixels.clone(),
+            };
+            material.base_color_texture = Some(texture);
+            materials.push(material);
+        });
+    }
+    (meshs, materials)
 }

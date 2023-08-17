@@ -10,12 +10,11 @@ pub struct Renderer<'a> {
     pub state: RendererDescriptor<'a>,
     pub frame_buffer: Vec<u8>,
     pub depth_buffer: Vec<f32>,
-    // 保留齐次坐标下的w值，其实就是视图空间中的 -z 值
-    pub w_buffer: Vec<f32>,
     // 绑定组，感觉好像在软渲染中不太需要
     pub bind_groups: Vec<BindGroup>,
     // 顶点缓冲区
     pub vertex_buffer: &'a [u8],
+    // 顶点索引
     pub index_buffer: &'a [u32],
 }
 
@@ -47,7 +46,6 @@ impl<'a> Renderer<'a> {
         Renderer {
             frame_buffer: vec![0; pixel_count * desc.surface.format.size()],
             depth_buffer: vec![0.; pixel_count],
-            w_buffer: vec![0.; pixel_count],
             bind_groups: vec![vec![]; desc.bind_group_count],
             vertex_buffer: &[],
             index_buffer: &[],
@@ -71,19 +69,6 @@ impl<'a> Renderer<'a> {
     // 索引解析 -- 顶点解析 -- 顶点处理 -- 图元组装 -- 图元裁剪 -- 光栅化 -- 片元解析 -- 深度解析 --绘制像素
     // https://gpuweb.github.io/gpuweb/#rendering-operations
     pub fn draw(&mut self, vertices: Range<u32>) {
-        let index_count = vertices.len();
-        // 通过顶点布局计算顶点缓冲区中每个顶点的数据长度（字节）
-        let vertex_len = self
-            .state
-            .vertex
-            .layout
-            .iter()
-            .map(|format| format.size())
-            .sum::<usize>();
-        assert!(
-            vertex_len == 0 || index_count >= self.vertex_buffer.len() / vertex_len,
-            "out of bounds"
-        );
         let vertices: Vec<u32> = vertices.collect();
         // 顶点处理，这里直接对所有顶点进行计算
         let vertex_shader_outputs = self.vertex_processing(&vertices);
@@ -271,13 +256,16 @@ impl<'a> Renderer<'a> {
                 for y in aabb[1]..aabb[3].clamp(0, self.state.surface.height) {
                     // 以坐标中心为像素坐标
                     let fragment_position = Vec2::new(x as f32 + 0.5, y as f32 + 0.5);
-                    // for linear interpolation
+
+                    // 线性插值使用的重心参数
                     let barycenter =
                         calculate_polygon_barycenter(fragment_position, &frame_buffer_coordinates);
                     // 验证当前像素点是否在多边形里面
                     if barycenter.iter().any(|&v| v < 0.) {
                         continue;
                     }
+
+                    // 透视插值使用的重心参数
                     let correct_barycenter = perspective_correct(&barycenter, &divisors);
 
                     // 计算透视插值下的w因子和深度
@@ -325,8 +313,8 @@ impl<'a> Renderer<'a> {
                     let fragment_depth = fragment_output.frag_depth.clamp(0.0, 1.0);
                     // 深度测试
                     // z 值从 0-1 ,这里使用bevy（因为bevy使用reverse z）的标准，默认越大越近
-                    // 当然这里理论上应该是可以配置的，对应wgpu配置项  depth_compare: CompareFunction::GreaterEqual,
-                    if fragment_depth <= self.depth_buffer[y * self.state.surface.width + x] {
+                    // 当然这里理论上应该是可以配置的，对应wgpu配置项  depth_compare: CompareFunction::Greater,
+                    if fragment_depth < self.depth_buffer[y * self.state.surface.width + x] {
                         continue;
                     }
                     // 深度写入
@@ -552,6 +540,7 @@ pub fn perspective_correct(barycenter: &[f32], divisors: &[f32]) -> Vec<f32> {
     let sum: f32 = iterator.clone().sum();
     iterator.map(|x| x / sum).collect()
 }
+
 // 计算插值
 pub fn interpolate(val: &[f32], weights: &[f32]) -> f32 {
     assert!(val.len() == weights.len());

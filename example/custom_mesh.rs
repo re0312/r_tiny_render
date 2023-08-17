@@ -6,14 +6,17 @@ use renderer::{
 };
 
 fn vertex_main(vertex_input: VertexInput, bind_groups: &Vec<BindGroup>) -> VertexOutput {
+    let in_postion: Vec3 = vertex_input.location[0].into();
+    let in_color: Vec4 = vertex_input.location[1].into();
+
+    println!("vertex postion:{:?}", in_postion);
+    println!("vertex color:{:?}", in_color);
+
     let mut out = VertexOutput {
         location: vec![ShaderType::Vec4(Vec4::ZERO), ShaderType::Vec2(Vec2::ONE)],
         position: Vec4::ONE,
     };
-    let in_postion: Vec3 = vertex_input.location[0].into();
-    let in_color: Vec4 = vertex_input.location[1].into();
-    println!("vertex postion:{:?}", in_postion);
-    println!("vertex color:{:?}", in_color);
+
     out.position = Vec4::new(in_postion.x, in_postion.y, in_postion.z, 1.);
     out.location[0] = in_color.into();
     out
