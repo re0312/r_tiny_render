@@ -96,5 +96,5 @@ pub struct FragmentOutput {
 }
 
 type BindGroups = Vec<BindGroup>;
-pub type VertexShader = fn(VertexInput, &BindGroups) -> VertexOutput;
-pub type FragmentShader = fn(FragmentInput, &BindGroups) -> FragmentOutput;
+pub type VertexShader = fn(VertexInput, &mut BindGroups) -> VertexOutput;
+pub type FragmentShader = fn(FragmentInput, &mut BindGroups) -> FragmentOutput;

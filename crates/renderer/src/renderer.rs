@@ -38,7 +38,6 @@ pub struct RendererDescriptor<'a> {
     pub surface: RenderSurface,
     pub vertex: VertexState<'a>,
     pub fragment: FragmentState,
-    pub bind_group_count: usize,
 }
 impl<'a> Renderer<'a> {
     pub fn new(desc: RendererDescriptor<'a>) -> Self {
@@ -46,7 +45,7 @@ impl<'a> Renderer<'a> {
         Renderer {
             frame_buffer: vec![0; pixel_count * desc.surface.format.size()],
             depth_buffer: vec![0.; pixel_count],
-            bind_groups: vec![vec![]; desc.bind_group_count],
+            bind_groups: vec![vec![]; 10],
             vertex_buffer: &[],
             index_buffer: &[],
             state: desc,
@@ -162,7 +161,7 @@ impl<'a> Renderer<'a> {
 
             //执行顶点着色器
             let vertex_shader_ouput =
-                (self.state.vertex.shader)(vertex_shader_input, &self.bind_groups);
+                (self.state.vertex.shader)(vertex_shader_input, &mut self.bind_groups);
 
             vertex_shader_outputs.push(vertex_shader_ouput)
         }
@@ -308,7 +307,7 @@ impl<'a> Renderer<'a> {
                     };
                     // 顶点着色器执行
                     let fragment_output =
-                        (self.state.fragment.shader)(fragment_input, &self.bind_groups);
+                        (self.state.fragment.shader)(fragment_input, &mut self.bind_groups);
 
                     let fragment_depth = fragment_output.frag_depth.clamp(0.0, 1.0);
                     // 深度测试

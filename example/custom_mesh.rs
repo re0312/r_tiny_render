@@ -5,7 +5,7 @@ use renderer::{
     RendererDescriptor, ShaderType, TextureFormat, VertexInput, VertexOutput, VertexState,
 };
 
-fn vertex_main(vertex_input: VertexInput, bind_groups: &Vec<BindGroup>) -> VertexOutput {
+fn vertex_main(vertex_input: VertexInput, bind_groups: &mut Vec<BindGroup>) -> VertexOutput {
     let in_postion: Vec3 = vertex_input.location[0].into();
     let in_color: Vec4 = vertex_input.location[1].into();
 
@@ -22,7 +22,7 @@ fn vertex_main(vertex_input: VertexInput, bind_groups: &Vec<BindGroup>) -> Verte
     out
 }
 
-fn fragment_main(input: FragmentInput, bind_groups: &Vec<BindGroup>) -> FragmentOutput {
+fn fragment_main(input: FragmentInput, bind_groups: &mut Vec<BindGroup>) -> FragmentOutput {
     let in_color: Vec4 = input.location[0].into();
     FragmentOutput {
         frag_depth: 0.5,
@@ -55,7 +55,6 @@ fn main() {
         fragment: FragmentState {
             shader: fragment_main,
         },
-        bind_group_count: 0,
     };
     let mut renderer = Renderer::new(desc);
     let binding = mesh.get_vertex_buffer_data();

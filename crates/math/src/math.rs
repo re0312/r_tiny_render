@@ -390,7 +390,7 @@ impl From<[f32; 4]> for Vec4 {
 
 // 矩阵为列存储
 #[repr(C)]
-#[derive(Clone, Copy)]
+#[derive(Copy, Clone, Debug, Default, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Mat2 {
     pub x_axis: Vec2,
     pub y_axis: Vec2,
@@ -456,7 +456,7 @@ impl Mul<Vec2> for Mat2 {
 }
 
 #[repr(C)]
-#[derive(Clone, Copy, Debug)]
+#[derive(Copy, Clone, Debug, Default, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Mat3 {
     pub x_axis: Vec3,
     pub y_axis: Vec3,
@@ -559,7 +559,7 @@ impl Mul<Mat3> for Mat3 {
 }
 
 #[repr(C)]
-#[derive(Clone, Copy)]
+#[derive(Copy, Clone, Debug, Default, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Mat4 {
     pub x_axis: Vec4,
     pub y_axis: Vec4,
@@ -632,11 +632,7 @@ impl Mat4 {
         todo!()
     }
 
-    pub(crate) fn from_scale_rotation_translation(
-        scale: Vec3,
-        rotation: Quat,
-        translation: Vec3,
-    ) -> Mat4 {
+    pub fn from_scale_rotation_translation(scale: Vec3, rotation: Quat, translation: Vec3) -> Mat4 {
         let (x_axis, y_axis, z_axis) = Self::quat_to_axes(rotation);
         Self::from_cols(
             x_axis.mul(scale.x),
@@ -734,7 +730,8 @@ impl Mul<Mat4> for Mat4 {
         }
     }
 }
-#[derive(Copy, Clone, Debug)]
+#[repr(C)]
+#[derive(Copy, Clone, Debug, Default, bytemuck::Pod, bytemuck::Zeroable)]
 // 四元数 用来衡量3维空间中的旋转角度
 pub struct Quat {
     pub x: f32,

@@ -1,3 +1,5 @@
+use std::default;
+
 use crate::TextureFormat;
 
 #[derive(Debug, Clone)]
@@ -14,12 +16,14 @@ pub struct Texture {
     pub data: Vec<u8>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub enum BindType {
     // u32存储uniform对应的索引
     Uniform(Vec<u8>),
     Sampler(Sampler),
     Texture(Texture),
+    #[default]
+    Empty,
 }
 impl From<BindType> for Texture {
     fn from(value: BindType) -> Self {

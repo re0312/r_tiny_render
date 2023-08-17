@@ -5,7 +5,7 @@ use renderer::{
     VertexState,
 };
 
-fn vertex_main(vertex_input: VertexInput, bind_groups: &Vec<BindGroup>) -> VertexOutput {
+fn vertex_main(vertex_input: VertexInput, bind_groups: &mut Vec<BindGroup>) -> VertexOutput {
     let mut out = VertexOutput {
         location: vec![ShaderType::Vec4(Vec4::ZERO), ShaderType::Vec2(Vec2::ONE)],
         position: Vec4::ONE,
@@ -19,7 +19,7 @@ fn vertex_main(vertex_input: VertexInput, bind_groups: &Vec<BindGroup>) -> Verte
     out
 }
 
-fn fragment_main(input: FragmentInput, bind_groups: &Vec<BindGroup>) -> FragmentOutput {
+fn fragment_main(input: FragmentInput, bind_groups: &mut Vec<BindGroup>) -> FragmentOutput {
     let in_color: Vec4 = input.location[0].into();
     FragmentOutput {
         frag_depth: 0.5,
@@ -46,7 +46,6 @@ fn main() {
         fragment: FragmentState {
             shader: fragment_main,
         },
-        bind_group_count: 0,
     };
     let mut renderer = Renderer::new(desc);
     renderer.set_vertex_buffer(bytemuck::cast_slice(&vertex_buffer));

@@ -1,6 +1,10 @@
+mod camera;
 mod color;
 mod material;
 mod mesh;
+mod transform;
+pub use camera::*;
 pub use color::*;
 pub use material::*;
 pub use mesh::*;
+pub use transform::*;

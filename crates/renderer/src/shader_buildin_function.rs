@@ -3,7 +3,7 @@ use math::{Vec2, Vec4};
 use crate::{Sampler, Texture, TextureFormat};
 
 // 纹理采样
-pub fn texture_sample(texture: &Texture, _sampler: Sampler, mut coords: Vec2) -> Vec4 {
+pub fn texture_sample(texture: &Texture, _sampler: &Sampler, mut coords: Vec2) -> Vec4 {
     if coords.x > 1.0 {
         coords.x -= coords.x.floor();
     }
