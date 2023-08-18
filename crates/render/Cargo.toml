@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 # inner dependencies
-renderer = { path = "../renderer", version = "0.1.0" }
+pipeline = { path = "../pipeline", version = "0.1.0" }
 math = { path = "../math", version = "0.1.0" }
 
 

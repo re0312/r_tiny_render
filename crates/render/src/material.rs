@@ -1,7 +1,7 @@
 use std::vec;
 
 use math::Vec4;
-use renderer::{BindType, Sampler, Texture};
+use pipeline::{BindType, Sampler, Texture};
 
 use crate::Color;
 
@@ -284,6 +284,10 @@ impl StandardMaterial {
         vec![
             BindType::Uniform(Vec::new()),
             BindType::Texture(self.base_color_texture.clone().unwrap_or_default()),
+            BindType::Sampler(Sampler {}),
+            BindType::Texture(self.emissive_texture.clone().unwrap_or_default()),
+            BindType::Sampler(Sampler {}),
+            BindType::Texture(self.metallic_roughness_texture.clone().unwrap_or_default()),
             BindType::Sampler(Sampler {}),
         ]
     }

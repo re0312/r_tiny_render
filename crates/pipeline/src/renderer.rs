@@ -80,6 +80,7 @@ impl<'a> Renderer<'a> {
 
     pub fn draw_indexed(&mut self, indices: Range<u32>) {
         let vertices = self.index_resolution(indices);
+        println!("vertices:{:?}",vertices);
         let vertex_shader_outputs = self.vertex_processing(&vertices);
         let primitive_index_list =
             self.primitive_assembly_clipping(&vertices, &vertex_shader_outputs);
@@ -242,7 +243,6 @@ impl<'a> Renderer<'a> {
                 })
                 .collect();
 
-            println!("{:?}", frame_buffer_coordinates);
             // 多边形光栅
             // cw 顺时针标准 ，area > 0 说明是正面，可以用来作为背面剔除的判断条件
             let area: f32 = calculate_polygon_area(&frame_buffer_coordinates);

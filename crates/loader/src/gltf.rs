@@ -1,6 +1,6 @@
 use gltf::image;
 use render::{Mesh, StandardMaterial};
-use renderer::{Texture, TextureFormat};
+use pipeline::{Texture, TextureFormat};
 
 pub fn load_gltf(path: &str) -> (Vec<Mesh>, Vec<StandardMaterial>) {
     let (document, buffers, images) = gltf::import(path).unwrap();

@@ -10,7 +10,7 @@ members = ["crates/*"]
 
 
 [dependencies]
-renderer = { path = "crates/renderer", version = "0.1.0" }
+pipeline = { path = "crates/pipeline", version = "0.1.0" }
 math = { path = "crates/math", version = "0.1.0" }
 render = { path = 'crates/render', version = "0.1.0" }
 loader = { path = "crates/loader", version = "0.1.0" }

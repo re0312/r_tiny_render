@@ -27,8 +27,7 @@ pub enum BindType {
 }
 impl From<BindType> for Texture {
     fn from(value: BindType) -> Self {
-        let val = value.clone();
-        match val {
+        match value {
             BindType::Texture(v) => v,
             _ => Texture::default(),
         }
@@ -40,6 +39,16 @@ impl From<BindType> for Sampler {
             BindType::Sampler(v) => v,
             _ => Sampler::default(),
         }
+    }
+}
+impl From<Texture> for BindType {
+    fn from(value: Texture) -> Self {
+        BindType::Texture(value)
+    }
+}
+impl From<Sampler> for BindType {
+    fn from(value: Sampler) -> Self {
+        BindType::Sampler(value)
     }
 }
 

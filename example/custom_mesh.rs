@@ -1,6 +1,6 @@
 use math::{Vec2, Vec3, Vec4};
 use render::Mesh;
-use renderer::{
+use pipeline::{
     BindGroup, FragmentInput, FragmentOutput, FragmentState, RenderSurface, Renderer,
     RendererDescriptor, ShaderType, TextureFormat, VertexInput, VertexOutput, VertexState,
 };

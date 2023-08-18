@@ -5,7 +5,7 @@ edition = "2021"
 
 
 [dependencies]
-renderer = { path = "../renderer", version = "0.1.0" }
+pipeline = { path = "../pipeline", version = "0.1.0" }
 render = { path = "../render", version = "0.1.0" }
 math = { path = "../math", version = "0.1.0" }
 bytemuck = { version = "1.13.1", features = ["derive"] }

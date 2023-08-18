@@ -1,5 +1,5 @@
 use bytemuck::cast_slice;
-use renderer::VertexFormat;
+use pipeline::VertexFormat;
 use std::collections::BTreeMap;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Hash)]
@@ -174,6 +174,7 @@ impl Mesh {
     pub fn set_indices(&mut self, indices: Vec<u32>) {
         self.indices = Some(indices);
     }
+
     pub fn get_vertex_buffer_layout(&self) -> Vec<VertexFormat> {
         self.attributes.values().fold(Vec::new(), |mut acc, v| {
             acc.push(v.attribute.format);

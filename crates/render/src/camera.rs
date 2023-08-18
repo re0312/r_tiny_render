@@ -1,5 +1,5 @@
-use crate::transform::Transform;
-use math::{Mat4, Vec2};
+use crate::{shader::shader_uniform::ViewUniform, transform::Transform};
+use math::{Mat4, Vec2, Vec3, Vec4};
 
 pub trait CameraProjection {
     fn get_projection_matrix(&self) -> Mat4;
@@ -112,7 +112,7 @@ impl Viewport {
     pub fn size(&self) -> f32 {
         self.physical_size.length_squared() / 2.
     }
-  #[rustfmt::skip]
+    #[rustfmt::skip]
     pub fn get_viewport_matrix(&self) -> Mat4 {
       Mat4::from_rows_slice(&[
           self.physical_size.x/2. , 0. , 0. , self.physical_size.x/2.,
@@ -141,4 +141,47 @@ impl Camera {
       let rotation =self.transform.rotation.inverse().to_mat4();
       rotation*translation
   }
+    // pub fn looking_to(mut self, direction: Vec3, up: Vec3) -> Self {
+    //     self.transform.look_to(direction, up);
+    //     self
+    // }
+    pub fn looking_at(mut self, target: Vec3, up: Vec3) -> Self {
+        self.transform.look_at(target, up);
+        self
+    }
+    pub fn with_transform(mut self, transform: Transform) -> Self {
+        self.transform = transform;
+        self
+    }
+
+    pub fn get_projection_matrix(&self) -> Mat4 {
+        self.projectiton.get_projection_matrix()
+    }
+
+    pub fn get_view_port(&self) -> Vec4 {
+        Vec4::new(
+            self.viewport.physical_position.x,
+            self.viewport.physical_position.y,
+            self.viewport.physical_size.x,
+            self.viewport.physical_size.y,
+        )
+    }
+
+    pub fn get_camera_uniform(&self) -> ViewUniform {
+        let view = self.get_view_matrix();
+        let proj = self.get_projection_matrix();
+        let view_proj = proj * view;
+        let world_position = self.transform.translation;
+        let viewport = self.get_view_port();
+        ViewUniform {
+            view_proj,
+            inverse_view_porj: view_proj.inverse(),
+            view,
+            inverse_view: view.inverse(),
+            projectiton: proj,
+            inverse_projection: proj.inverse(),
+            world_position,
+            viewport,
+        }
+    }
 }
