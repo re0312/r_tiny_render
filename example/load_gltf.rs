@@ -52,7 +52,7 @@ fn fragment_main(input: FragmentInput, bind_groups: &mut Vec<BindGroup>) -> Frag
     bind_groups[1][1] = texture.into();
     bind_groups[1][2] = sampler.into();
     FragmentOutput {
-        frag_depth: 0.5,
+        frag_depth: input.position.z,
         sample_mask: 0,
         location: vec![ShaderType::Vec4(in_color)],
     }
@@ -72,8 +72,8 @@ fn main() {
     let desc = RendererDescriptor {
         surface: RenderSurface {
             format: TextureFormat::Rgba8Unorm,
-            height: 100,
-            width: 100,
+            height: 1000,
+            width: 1000,
         },
         vertex: VertexState {
             shader: vertex_main,
@@ -85,7 +85,7 @@ fn main() {
     };
 
     let camera = Camera::default()
-        .with_transform(Transform::from_xyz(0., 0., 2.).looking_at(Vec3::ZERO, Vec3::Y));
+        .with_transform(Transform::from_xyz(2., -2., 2.).looking_at(Vec3::ZERO, Vec3::Y));
     let camera_uniform = camera.get_camera_uniform();
     let c = bytemuck::cast_slice::<_, u8>(&[camera_uniform]).to_vec();
     let bind_group_0 = vec![BindType::Uniform(c)];
@@ -106,8 +106,8 @@ fn main() {
     image::save_buffer(
         "image_mesh.png",
         &renderer.frame_buffer,
-        100,
-        100,
+        1000,
+        1000,
         image::ColorType::Rgba8,
     )
     .unwrap();

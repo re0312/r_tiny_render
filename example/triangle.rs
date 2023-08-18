@@ -22,16 +22,19 @@ fn vertex_main(vertex_input: VertexInput, bind_groups: &mut Vec<BindGroup>) -> V
 fn fragment_main(input: FragmentInput, bind_groups: &mut Vec<BindGroup>) -> FragmentOutput {
     let in_color: Vec4 = input.location[0].into();
     FragmentOutput {
-        frag_depth: 0.5,
+        frag_depth: input.position.z,
         sample_mask: 2,
         location: vec![ShaderType::Vec4(in_color)],
     }
 }
 fn main() {
     let vertex_buffer: Vec<[f32; 7]> = vec![
+        [0., 1., 0.9, 0., 1., 0., 1.],
+        [-0.7, 0., 0.9, 0., 1., 0., 1.],
+        [0.5, 0., 0.9, 0., 1., 0., 1.],
+        [0., 1., 0., 1., 0., 0., 1.],
         [-0.5, 0., 0., 1., 0., 0., 1.],
-        [0., 1., 0., 0., 1., 0., 1.],
-        [0.5, 0., 0., 0., 0., 1., 1.],
+        [0.5, 0., 0., 1., 0., 0., 1.],
     ];
     let desc = RendererDescriptor {
         surface: RenderSurface {
@@ -49,7 +52,7 @@ fn main() {
     };
     let mut renderer = Renderer::new(desc);
     renderer.set_vertex_buffer(bytemuck::cast_slice(&vertex_buffer));
-    renderer.draw(0..3);
+    renderer.draw(0..6);
     image::save_buffer(
         "image_texture.png",
         &renderer.frame_buffer,

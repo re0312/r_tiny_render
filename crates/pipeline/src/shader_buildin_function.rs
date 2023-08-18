@@ -4,14 +4,14 @@ use crate::{Sampler, Texture, TextureFormat};
 
 // 纹理采样
 pub fn texture_sample(texture: &Texture, _sampler: &Sampler, mut coords: Vec2) -> Vec4 {
-    if coords.x > 1.0 {
+    if coords.x >= 1.0 {
         coords.x -= coords.x.floor();
     }
-    if coords.y > 1.0 {
+    if coords.y >= 1.0 {
         coords.y -= coords.y.floor();
     }
-    let x = (coords.x * (texture.width - 1) as f32) as usize;
-    let y = (coords.y * (texture.height - 1) as f32) as usize;
+    let x = (coords.x * texture.width as f32) as usize;
+    let y = (coords.y * texture.height as f32) as usize;
 
     match texture.format {
         TextureFormat::R8Unorm => {
