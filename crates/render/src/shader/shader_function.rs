@@ -1,5 +1,5 @@
 use math::{Vec2, Vec3, Vec4};
-use pipeline::{FragmentInput, ShaderType, VertexInput, VertexOutput};
+use pipeline::{FragmentInput, FragmentOutput, ShaderType, VertexInput, VertexOutput};
 
 use super::shader_type::MeshVertexOutput;
 
@@ -41,5 +41,12 @@ pub fn construct_fragment_stage_mesh_input(input: &FragmentInput) -> MeshVertexO
         world_position: input.location[0].into(),
         world_normal: input.location[1].into(),
         uv: input.location[2].into(),
+    }
+}
+pub fn contruct_fragment_output(in_color: Vec4) -> FragmentOutput {
+    FragmentOutput {
+        frag_depth: None,
+        sample_mask: 0,
+        location: vec![ShaderType::Vec4(in_color)],
     }
 }

@@ -90,7 +90,7 @@ pub struct FragmentInput {
     pub location: Vec<ShaderType>,
 }
 pub struct FragmentOutput {
-    pub frag_depth: f32,
+    pub frag_depth: Option<f32>,
     pub sample_mask: u32,
     pub location: Vec<ShaderType>,
 }

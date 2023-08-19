@@ -9,6 +9,7 @@ pub struct ViewUniform {
     pub inverse_view_porj: Mat4,
     // 视图矩阵
     pub view: Mat4,
+    // 视图变换矩阵
     pub inverse_view: Mat4,
     // 投影矩阵
     pub projectiton: Mat4,

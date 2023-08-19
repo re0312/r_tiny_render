@@ -1,11 +1,5 @@
-use std::default;
-
 use crate::TextureFormat;
 
-#[derive(Debug, Clone)]
-pub struct Uniform {}
-#[derive(Debug, Clone)]
-pub struct Storage {}
 #[derive(Debug, Clone, Default)]
 pub struct Sampler {}
 #[derive(Debug, Clone, Default)]

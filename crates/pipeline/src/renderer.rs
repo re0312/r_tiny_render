@@ -80,7 +80,6 @@ impl<'a> Renderer<'a> {
 
     pub fn draw_indexed(&mut self, indices: Range<u32>) {
         let vertices = self.index_resolution(indices);
-        println!("vertices:{:?}",vertices);
         let vertex_shader_outputs = self.vertex_processing(&vertices);
         let primitive_index_list =
             self.primitive_assembly_clipping(&vertices, &vertex_shader_outputs);
@@ -247,6 +246,10 @@ impl<'a> Renderer<'a> {
             // cw 顺时针标准 ，area > 0 说明是正面，可以用来作为背面剔除的判断条件
             let area: f32 = calculate_polygon_area(&frame_buffer_coordinates);
 
+            // if area < 0. {
+            //     continue;
+            // }
+
             // aabb 包围盒，左上 右下
             let aabb = calculate_polygon_aabb(&frame_buffer_coordinates);
 
@@ -257,8 +260,11 @@ impl<'a> Renderer<'a> {
                     let fragment_position = Vec2::new(x as f32 + 0.5, y as f32 + 0.5);
 
                     // 线性插值使用的重心参数
-                    let barycenter =
-                        calculate_polygon_barycenter(fragment_position, &frame_buffer_coordinates);
+                    let barycenter = calculate_polygon_barycenter(
+                        fragment_position,
+                        &frame_buffer_coordinates,
+                        area,
+                    );
                     // 验证当前像素点是否在多边形里面
                     if barycenter.iter().any(|&v| v < 0.) {
                         continue;
@@ -309,11 +315,14 @@ impl<'a> Renderer<'a> {
                     let fragment_output =
                         (self.state.fragment.shader)(fragment_input, &mut self.bind_groups);
 
-                    let fragment_depth = fragment_output.frag_depth.clamp(0.0, 1.0);
+                    let fragment_depth = fragment_output
+                        .frag_depth
+                        .unwrap_or(fragment_depth_perspective_interpolated)
+                        .clamp(0.0, 1.0);
                     // 深度测试
                     // z 值从 0-1 ,这里使用bevy（因为bevy使用reverse z）的标准，默认越大越近
                     // 当然这里理论上应该是可以配置的，对应wgpu配置项  depth_compare: CompareFunction::Greater,
-                    if fragment_depth < self.depth_buffer[y * self.state.surface.width + x] {
+                    if fragment_depth <= self.depth_buffer[y * self.state.surface.width + x] {
                         continue;
                     }
                     // 深度写入
@@ -333,8 +342,6 @@ impl<'a> Renderer<'a> {
 
     pub fn draw_pixel(&mut self, x: usize, y: usize, color: Vec4) {
         let width = self.state.surface.width;
-        #[cfg(feature = "info")]
-        println!("piexl:[({},{})]\n width:{}", x, y, width);
 
         self.frame_buffer[(width * y + x) * 4] = (color.x * 255.) as u8;
         self.frame_buffer[((width * y + x) * 4) + 1] = (color.y * 255.) as u8;
@@ -379,8 +386,7 @@ impl<'a> Renderer<'a> {
         let mut y0 = y1;
         let mut delta = 0;
         let mut middle = dx;
-        #[cfg(feature = "info")]
-        println!("line:[({},{}),({},{})]", x1, y1, x2, y2);
+
         for x0 in if !x_reverse {
             (x1..x2).collect::<Vec<i32>>()
         } else {
@@ -522,15 +528,14 @@ fn calculate_polygon_aabb(coordinates: &[Vec2]) -> [usize; 4] {
 
 // 计算点p对于平面多边形的重心坐标
 // https://gpuweb.github.io/gpuweb/#barycentric-coordinates
-fn calculate_polygon_barycenter(p: Vec2, polygon: &[Vec2]) -> Vec<f32> {
+fn calculate_polygon_barycenter(p: Vec2, polygon: &[Vec2], area: f32) -> Vec<f32> {
     let polygon_len = polygon.len();
-    let mut res = Vec::new();
+    let mut res = vec![0.; polygon_len];
     for i in 0..polygon_len {
-        let lamda = (p - polygon[i]).cross(polygon[(i + 1) % polygon_len] - polygon[i]);
-        res.push(lamda);
+        let lamda = (p - polygon[i]).cross(p - polygon[(i + 1) % polygon_len]) / area;
+        res[(polygon_len - 1 + i) % polygon_len] = lamda;
     }
-    let sum: f32 = res.iter().sum();
-    res.iter().map(|v| v / sum).collect()
+    res
 }
 
 // 计算重心参数的矫正

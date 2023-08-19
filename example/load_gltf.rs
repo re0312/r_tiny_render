@@ -1,5 +1,5 @@
 use loader::load_gltf;
-use math::{Mat4, Vec2, Vec3, Vec4};
+use math::{Vec2, Vec3, Vec4};
 use pipeline::{
     texture_sample, BindGroup, BindType, FragmentInput, FragmentOutput, FragmentState,
     RenderSurface, Renderer, RendererDescriptor, Sampler, ShaderType, Texture, TextureFormat,
@@ -15,21 +15,20 @@ fn vertex_main(vertex_input: VertexInput, bind_groups: &mut Vec<BindGroup>) -> V
     let in_postion: Vec3 = vertex_input.location[0].into();
     let in_normal: Vec3 = vertex_input.location[1].into();
     let in_texture_uv: Vec2 = vertex_input.location[2].into();
-    println!("texture_uv_vertex:{:?}",in_texture_uv);
 
     let view_uniform: ViewUniform = std::mem::take(&mut bind_groups[0][0]).into();
     let texture: Texture = std::mem::take(&mut bind_groups[1][1]).into();
     let sampler: Sampler = std::mem::take(&mut bind_groups[1][2]).into();
 
+    //
     let clip_postion = view_uniform.view_proj * in_postion.extend(1.);
-    println!("{:?}",clip_postion);
 
     // 还原bindgroup
     bind_groups[0][0] = view_uniform.into();
     bind_groups[1][1] = texture.into();
     bind_groups[1][2] = sampler.into();
 
-    out.position = clip_postion;
+    out.position = clip_postion.into();
     out.location[0] = in_normal.into();
     out.location[1] = in_texture_uv.into();
     out
@@ -52,19 +51,19 @@ fn fragment_main(input: FragmentInput, bind_groups: &mut Vec<BindGroup>) -> Frag
     bind_groups[1][1] = texture.into();
     bind_groups[1][2] = sampler.into();
     FragmentOutput {
-        frag_depth: input.position.z,
+        frag_depth: None,
         sample_mask: 0,
         location: vec![ShaderType::Vec4(in_color)],
     }
 }
 
 fn main() {
-    // let (meshs, materials) = load_gltf(
-    //     "C:\\Users\\27135\\Desktop\\project\\rust\\r_tinny_render\\assets\\box-textured\\BoxTextured.gltf",
-    // );
     let (meshs, materials) = load_gltf(
-        "/home/10337136@zte.intra/Desktop/rust/r_tinny_render/assets/box-textured/BoxTextured.gltf",
+        "C:\\Users\\27135\\Desktop\\project\\rust\\r_tinny_render\\assets\\box-textured\\BoxTextured.gltf",
     );
+    // let (meshs, materials) = load_gltf(
+    //     "/home/10337136@zte.intra/Desktop/rust/r_tinny_render/assets/box-textured/BoxTextured.gltf",
+    // );
 
     let mesh = &meshs[0];
     let material = &materials[0];
@@ -85,7 +84,7 @@ fn main() {
     };
 
     let camera = Camera::default()
-        .with_transform(Transform::from_xyz(2., -2., 2.).looking_at(Vec3::ZERO, Vec3::Y));
+        .with_transform(Transform::from_xyz(2., 2., 2.).looking_at(Vec3::ZERO, Vec3::Y));
     let camera_uniform = camera.get_camera_uniform();
     let c = bytemuck::cast_slice::<_, u8>(&[camera_uniform]).to_vec();
     let bind_group_0 = vec![BindType::Uniform(c)];
@@ -95,8 +94,8 @@ fn main() {
     let bind_group_material = material.get_materail_bind_group();
 
     println!("layout: {:?}", mesh.get_vertex_buffer_layout());
-    println!("vertex count:{:?}",mesh.count_vertices());
-    println!("indices count:{:?}",mesh.count_indices());
+    println!("vertex count:{:?}", mesh.count_vertices());
+    println!("indices count:{:?}", mesh.count_indices());
 
     renderer.set_vertex_buffer(&vertex_buffer);
     renderer.set_index_buffer(&index_buffer);

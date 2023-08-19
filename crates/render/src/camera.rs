@@ -131,20 +131,18 @@ pub struct Camera {
 
 impl Camera {
     #[rustfmt::skip]
-    pub fn get_view_matrix(&self) -> Mat4 {
-      let translation = Mat4::from_rows_slice(&[
-          1. , 0. , 0. , -self.transform.translation.x,
-          0. , 1. , 0. , -self.transform.translation.y,
-          0. , 0. , 1. , -self.transform.translation.z,
-          0. , 0. , 0. , 1.,
-      ]);
-      let rotation =self.transform.rotation.inverse().to_mat4();
-      rotation*translation
-  }
-    // pub fn looking_to(mut self, direction: Vec3, up: Vec3) -> Self {
-    //     self.transform.look_to(direction, up);
-    //     self
-    // }
+    fn get_view_matrix(&self) -> Mat4 {
+        self.transform.compute_matrix()
+    //   let translation = Mat4::from_rows_slice(&[
+    //       1. , 0. , 0. , -self.transform.translation.x,
+    //       0. , 1. , 0. , -self.transform.translation.y,
+    //       0. , 0. , 1. , -self.transform.translation.z,
+    //       0. , 0. , 0. , 1.,
+    //   ]);
+    //   let rotation =self.transform.rotation.inverse().to_mat4();
+    //   rotation*translation
+    }
+
     pub fn looking_at(mut self, target: Vec3, up: Vec3) -> Self {
         self.transform.look_at(target, up);
         self
@@ -170,14 +168,15 @@ impl Camera {
     pub fn get_camera_uniform(&self) -> ViewUniform {
         let view = self.get_view_matrix();
         let proj = self.get_projection_matrix();
-        let view_proj = proj * view;
+        let inverse_view = view.inverse();
+        let view_proj = proj * inverse_view;
         let world_position = self.transform.translation;
         let viewport = self.get_view_port();
         ViewUniform {
             view_proj,
             inverse_view_porj: view_proj.inverse(),
             view,
-            inverse_view: view.inverse(),
+            inverse_view,
             projectiton: proj,
             inverse_projection: proj.inverse(),
             world_position,
