@@ -5,57 +5,7 @@ use pipeline::{
     RenderSurface, Renderer, RendererDescriptor, Sampler, ShaderType, Texture, TextureFormat,
     VertexInput, VertexOutput, VertexState,
 };
-use render::{shader_uniform::ViewUniform, Camera, Transform};
-
-fn vertex_main(vertex_input: VertexInput, bind_groups: &mut Vec<BindGroup>) -> VertexOutput {
-    let mut out = VertexOutput {
-        location: vec![ShaderType::Vec4(Vec4::ZERO), ShaderType::Vec2(Vec2::ONE)],
-        position: Vec4::ONE,
-    };
-    let in_postion: Vec3 = vertex_input.location[0].into();
-    let in_normal: Vec3 = vertex_input.location[1].into();
-    let in_texture_uv: Vec2 = vertex_input.location[2].into();
-
-    let view_uniform: ViewUniform = std::mem::take(&mut bind_groups[0][0]).into();
-    let texture: Texture = std::mem::take(&mut bind_groups[1][1]).into();
-    let sampler: Sampler = std::mem::take(&mut bind_groups[1][2]).into();
-
-    //
-    let clip_postion = view_uniform.view_proj * in_postion.extend(1.);
-
-    // 还原bindgroup
-    bind_groups[0][0] = view_uniform.into();
-    bind_groups[1][1] = texture.into();
-    bind_groups[1][2] = sampler.into();
-
-    out.position = clip_postion.into();
-    out.location[0] = in_normal.into();
-    out.location[1] = in_texture_uv.into();
-    out
-}
-
-fn fragment_main(input: FragmentInput, bind_groups: &mut Vec<BindGroup>) -> FragmentOutput {
-    let in_normal: Vec3 = input.location[0].into();
-    let in_texture_uv: Vec2 = input.location[1].into();
-    // println!("tex_coord:{:?}", in_texture_uv);
-
-    let view_uniform: ViewUniform = std::mem::take(&mut bind_groups[0][0]).into();
-    // println!("view_uniform:{:?}", view_uniform);
-    let texture: Texture = std::mem::take(&mut bind_groups[1][1]).into();
-    let sampler: Sampler = std::mem::take(&mut bind_groups[1][2]).into();
-
-    let in_color = texture_sample(&texture, &sampler, in_texture_uv);
-
-    // 还原bindgroup
-    bind_groups[0][0] = view_uniform.into();
-    bind_groups[1][1] = texture.into();
-    bind_groups[1][2] = sampler.into();
-    FragmentOutput {
-        frag_depth: None,
-        sample_mask: 0,
-        location: vec![ShaderType::Vec4(in_color)],
-    }
-}
+use render::{shader_uniform::ViewUniform, Camera, Transform, pbr_shder::{vertex_main, fragment_main}};
 
 fn main() {
     let (meshs, materials) = load_gltf(
@@ -102,7 +52,7 @@ fn main() {
     renderer.set_bind_group(1, bind_group_material);
     renderer.draw_indexed(0..mesh.count_indices() as u32);
     image::save_buffer(
-        "image_mesh.png",
+        "image_shading.png",
         &renderer.frame_buffer,
         1000,
         1000,

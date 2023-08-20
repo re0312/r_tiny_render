@@ -250,6 +250,7 @@ impl<'a> Renderer<'a> {
             //     continue;
             // }
 
+            // println!("{:?}",frame_buffer_coordinates);
             // aabb 包围盒，左上 右下
             let aabb = calculate_polygon_aabb(&frame_buffer_coordinates);
 

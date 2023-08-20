@@ -37,6 +37,9 @@ impl Color {
     pub fn to_vec3(&self) -> Vec3 {
         Vec3::new(self.r, self.g, self.b)
     }
+    pub fn to_vec4(&self) -> Vec4 {
+        Vec4::new(self.r, self.g, self.b, self.a)
+    }
 }
 impl Default for Color {
     fn default() -> Self {

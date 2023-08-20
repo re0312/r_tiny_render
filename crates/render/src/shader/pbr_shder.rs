@@ -1,12 +1,14 @@
-use math::{Vec2, Vec3};
+use math::{Vec2, Vec3, Vec4};
 use pipeline::{
     BindGroup, FragmentInput, FragmentOutput, Sampler, Texture, VertexInput, VertexOutput,
 };
 
 use crate::{
-    shader_function::{construct_fragment_stage_mesh_input, construct_vertex_output},
+    shader_function::{
+        construct_fragment_stage_mesh_input, construct_vertex_output, contruct_fragment_output,
+    },
     shader_type::MeshVertexOutput,
-    shader_uniform::ViewUniform,
+    shader_uniform::{StandardMaterialUniform, ViewUniform},
 };
 
 pub fn vertex_main(vertex_input: VertexInput, bind_groups: &mut Vec<BindGroup>) -> VertexOutput {
@@ -15,6 +17,7 @@ pub fn vertex_main(vertex_input: VertexInput, bind_groups: &mut Vec<BindGroup>) 
     let in_texture_uv: Vec2 = vertex_input.location[2].into();
 
     let view_uniform: ViewUniform = std::mem::take(&mut bind_groups[0][0]).into();
+    let materail_uniform: StandardMaterialUniform = std::mem::take(&mut bind_groups[1][0]).into();
     let texture: Texture = std::mem::take(&mut bind_groups[1][1]).into();
     let sampler: Sampler = std::mem::take(&mut bind_groups[1][2]).into();
 
@@ -29,13 +32,15 @@ pub fn vertex_main(vertex_input: VertexInput, bind_groups: &mut Vec<BindGroup>) 
     };
 
     bind_groups[0][0] = view_uniform.into();
+    bind_groups[1][0] = materail_uniform.into();
     bind_groups[1][1] = texture.into();
     bind_groups[1][2] = sampler.into();
 
+    let a = construct_vertex_output(&out);
     construct_vertex_output(&out)
 }
 
 pub fn fragment_main(input: FragmentInput, bind_groups: &mut Vec<BindGroup>) -> FragmentOutput {
     let fragment_in = construct_fragment_stage_mesh_input(&input);
-    todo!();
+    contruct_fragment_output(Vec4::ONE)
 }

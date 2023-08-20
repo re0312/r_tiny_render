@@ -22,7 +22,7 @@ fn vertex_main(vertex_input: VertexInput, bind_groups: &mut Vec<BindGroup>) -> V
 fn fragment_main(input: FragmentInput, bind_groups: &mut Vec<BindGroup>) -> FragmentOutput {
     let in_color: Vec4 = input.location[0].into();
     FragmentOutput {
-        frag_depth: 0.5,
+        frag_depth: None,
         sample_mask: 2,
         location: vec![ShaderType::Vec4(in_color)],
     }

@@ -28,3 +28,8 @@ path = "example/custom_mesh.rs"
 [[example]]
 name = "load_gltf"
 path = "example/load_gltf.rs"
+
+[[example]]
+name = "pbr"
+path = "example/pbr.rs"
+

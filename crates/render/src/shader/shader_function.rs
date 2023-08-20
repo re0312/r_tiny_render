@@ -27,7 +27,7 @@ pub fn construct_vertex_output(mesh_vertex_output: &MeshVertexOutput) -> VertexO
         position: Vec4::ONE,
         location: vec![ShaderType::Vec4(Vec4::ZERO); 5],
     };
-    out.position = out.position;
+    out.position = mesh_vertex_output.position;
     out.location[0] = mesh_vertex_output.world_position.into();
     out.location[1] = mesh_vertex_output.world_normal.into();
     out.location[2] = mesh_vertex_output.uv.into();
@@ -43,6 +43,7 @@ pub fn construct_fragment_stage_mesh_input(input: &FragmentInput) -> MeshVertexO
         uv: input.location[2].into(),
     }
 }
+
 pub fn contruct_fragment_output(in_color: Vec4) -> FragmentOutput {
     FragmentOutput {
         frag_depth: None,
