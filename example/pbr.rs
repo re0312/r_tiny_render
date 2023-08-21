@@ -5,7 +5,11 @@ use pipeline::{
     RenderSurface, Renderer, RendererDescriptor, Sampler, ShaderType, Texture, TextureFormat,
     VertexInput, VertexOutput, VertexState,
 };
-use render::{shader_uniform::ViewUniform, Camera, Transform, pbr_shder::{vertex_main, fragment_main}};
+use render::{
+    pbr_shder::{fragment_main, vertex_main},
+    shader_uniform::ViewUniform,
+    Camera, PointLight, Transform,
+};
 
 fn main() {
     let (meshs, materials) = load_gltf(
@@ -36,7 +40,14 @@ fn main() {
     let camera = Camera::default()
         .with_transform(Transform::from_xyz(2., 2., 2.).looking_at(Vec3::ZERO, Vec3::Y));
 
-    let bind_group_0 = vec![camera.get_camera_uniform().into()];
+    let light = PointLight {
+        transform: Transform::from_xyz(0., 100., 0.),
+        ..Default::default()
+    };
+    let bind_group_0 = vec![
+        camera.get_camera_uniform().into(),
+        light.get_point_light_uniform().into(),
+    ];
     let mut renderer = Renderer::new(desc);
     let vertex_buffer = mesh.get_vertex_buffer_data();
     let index_buffer = mesh.get_index_buffer_data();

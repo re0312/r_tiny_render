@@ -40,6 +40,14 @@ impl Color {
     pub fn to_vec4(&self) -> Vec4 {
         Vec4::new(self.r, self.g, self.b, self.a)
     }
+    pub fn to_linear_rgba(&self) -> Vec4 {
+        Vec4 {
+            x: nolinear_to_linear_srgb(self.r),
+            y: nolinear_to_linear_srgb(self.g),
+            z: nolinear_to_linear_srgb(self.b),
+            w: self.a,
+        }
+    }
 }
 impl Default for Color {
     fn default() -> Self {
@@ -79,5 +87,16 @@ impl Mul<Color> for Color {
 impl From<[f32; 3]> for Color {
     fn from(v: [f32; 3]) -> Self {
         Color::new(v[0], v[1], v[2], 1.)
+    }
+}
+
+fn nolinear_to_linear_srgb(v: f32) -> f32 {
+    if v <= 0.0 {
+        return v;
+    }
+    if v <= 0.04045 {
+        v / 12.92 // linear falloff in dark values
+    } else {
+        ((v + 0.055) / 1.055).powf(2.4) // gamma curve in other area
     }
 }

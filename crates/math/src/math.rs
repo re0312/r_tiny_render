@@ -1,6 +1,7 @@
 use std::{
     arch::x86_64::{
-        __m128, _mm_add_ps, _mm_mul_ps, _mm_set1_ps, _mm_set_ps, _mm_shuffle_ps, _mm_sub_ps, _mm_cvtss_f32,
+        __m128, _mm_add_ps, _mm_cvtss_f32, _mm_mul_ps, _mm_set1_ps, _mm_set_ps, _mm_shuffle_ps,
+        _mm_sub_ps,
     },
     ops::{Add, AddAssign, Div, Mul, Neg, Sub},
 };
@@ -387,6 +388,17 @@ impl Mul<f32> for Vec4 {
             y: self.y * rhs,
             z: self.z * rhs,
             w: self.w * rhs,
+        }
+    }
+}
+impl Mul<Vec4> for Vec4 {
+    type Output = Self;
+    fn mul(self, rhs: Vec4) -> Self {
+        Self {
+            x: self.x * rhs.x,
+            y: self.y * rhs.y,
+            z: self.z * rhs.z,
+            w: self.w * rhs.w,
         }
     }
 }

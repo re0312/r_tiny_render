@@ -1,12 +1,31 @@
+use crate::{shader_uniform::PointLightUniform, Color, Transform};
+
 pub struct PointLight {
-  pub color: Color,
-  pub intensity: f32,
-  pub range: f32,
-  pub radius: f32,
-  pub shadows_enabled: bool,
-  pub shadow_depth_bias: f32,
-  /// A bias applied along the direction of the fragment's surface normal. It is scaled to the
-  /// shadow map's texel size so that it can be small close to the camera and gets larger further
-  /// away.
-  pub shadow_normal_bias: f32,
+    pub color: Color,
+    pub intensity: f32,
+    pub range: f32,
+    pub radius: f32,
+    pub transform: Transform,
+}
+
+impl Default for PointLight {
+    fn default() -> Self {
+        PointLight {
+            color: Color::WHITE,
+            intensity: 800.,
+            range: 20.,
+            radius: 0.,
+            transform: Transform::from_xyz(0., 0., 0.),
+        }
+    }
+}
+impl PointLight {
+    pub fn get_point_light_uniform(&self) -> PointLightUniform {
+        PointLightUniform {
+            color_inverse_square_range: (self.color.to_linear_rgba() * self.intensity)
+                .xyz()
+                .extend(1. / (self.range * self.range)),
+            position_radius: self.transform.translation.extend(self.radius),
+        }
+    }
 }

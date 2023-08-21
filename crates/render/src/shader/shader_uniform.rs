@@ -53,7 +53,7 @@ pub struct ViewUniform {
 }
 
 #[repr(C)]
-#[derive(Copy, Clone, Debug, Default, bytemuck::Pod, bytemuck::Zeroable)]
+#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct StandardMaterialUniform {
     /// Doubles as diffuse albedo for non-metallic, specular for metallic and a mix for everything
     /// in between.
@@ -62,8 +62,8 @@ pub struct StandardMaterialUniform {
     // Might be used in the future for exposure correction in HDR
     pub emissive: Vec4,
     /// Linear perceptual roughness, clamped to [0.089, 1.0] in the shader
-    /// Defaults to minimum of 0.089
-    pub roughness: f32,
+    /// Defaults to `0.5`.
+    pub perceptual_roughness: f32,
     /// From [0.0, 1.0], dielectric to pure metallic
     pub metallic: f32,
     /// Specular intensity for non-metals on a linear scale of [0.0, 1.0]
@@ -72,10 +72,42 @@ pub struct StandardMaterialUniform {
     /// The [`StandardMaterialFlags`] accessible in the `wgsl` shader.
     pub flags: u32,
 }
+impl Default for StandardMaterialUniform {
+    fn default() -> Self {
+        Self {
+            base_color: Vec4::ONE,
+            emissive: Vec4::new(0., 0., 0., 1.),
+            perceptual_roughness: 0.5,
+            metallic: 0.0,
+            reflectance: 0.5,
+            flags: StandardMaterialFlags::ALPHA_MODE_OPAQUE.bits(),
+        }
+    }
+}
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Default, bytemuck::Pod, bytemuck::Zeroable)]
 struct MeshUniform {
     model: Mat4,
+}
+#[repr(C)]
+#[derive(Copy, Clone, Debug, Default, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct PointLightUniform {
+    pub color_inverse_square_range: Vec4,
+    pub position_radius: Vec4,
+}
+
+impl From<BindType> for PointLightUniform {
+    fn from(value: BindType) -> Self {
+        match value {
+            BindType::Uniform(v) => unsafe { *(v.as_ptr() as *const PointLightUniform) },
+            _ => panic!("wrong format corresponding"),
+        }
+    }
+}
+impl From<PointLightUniform> for BindType {
+    fn from(value: PointLightUniform) -> Self {
+        BindType::Uniform(bytemuck::cast_slice(&[value]).to_vec())
+    }
 }
 
 impl From<BindType> for ViewUniform {

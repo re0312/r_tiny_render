@@ -287,7 +287,7 @@ impl StandardMaterial {
             emissive: self.emissive.to_vec4(),
             metallic: self.metallic,
             reflectance: self.reflectance,
-            roughness: self.perceptual_roughness,
+            perceptual_roughness: self.perceptual_roughness,
             flags: flags.bits(),
         };
         vec![

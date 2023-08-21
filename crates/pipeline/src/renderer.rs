@@ -282,6 +282,8 @@ impl<'a> Renderer<'a> {
                         &correct_barycenter,
                     );
 
+                    // 这里可以直接执行early z
+
                     // 对顶点着色器的用户自定义输入location进行插值给fragment shader 这里默认使用透视插值，暂时不支持其他插值
                     let fragment_input_locations: Vec<ShaderType> = {
                         let fragment_location_vec4 = primitive.iter().enumerate().fold(
