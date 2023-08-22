@@ -41,6 +41,7 @@ pub fn construct_fragment_stage_mesh_input(input: &FragmentInput) -> MeshVertexO
         world_position: input.location[0].into(),
         world_normal: input.location[1].into(),
         uv: input.location[2].into(),
+        world_tangent: input.location[3].into(),
     }
 }
 

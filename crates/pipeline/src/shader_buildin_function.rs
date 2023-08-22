@@ -1,4 +1,4 @@
-use math::{Vec2, Vec4};
+use math::{Vec2, Vec3, Vec4};
 
 use crate::{Sampler, Texture, TextureFormat};
 

@@ -7,6 +7,7 @@ pub struct MeshVertexOutput {
     pub world_position: Vec4,
     pub world_normal: Vec3,
     pub uv: Vec2,
+    pub world_tangent: Vec4,
 }
 pub struct PbrInput {
     pub materail: StandardMaterialUniform,

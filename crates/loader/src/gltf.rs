@@ -1,6 +1,6 @@
 use gltf::image;
-use render::{Mesh, StandardMaterial};
 use pipeline::{Texture, TextureFormat};
+use render::{Color, Mesh, StandardMaterial};
 
 pub fn load_gltf(path: &str) -> (Vec<Mesh>, Vec<StandardMaterial>) {
     let (document, buffers, images) = gltf::import(path).unwrap();
@@ -40,17 +40,26 @@ pub fn load_gltf(path: &str) -> (Vec<Mesh>, Vec<StandardMaterial>) {
                                 .collect::<Vec<[f32; 4]>>(),
                         );
                     }
-                    gltf::Semantic::TexCoords(set) => {
+                    gltf::Semantic::TexCoords(0) => {
+                        println!("coordinate:{}", 0);
                         mesh.insert_attribute(
                             Mesh::ATTRIBUTE_UV_0,
                             reader
-                                .read_tex_coords(set)
+                                .read_tex_coords(0)
                                 .unwrap()
                                 .into_f32()
                                 .collect::<Vec<[f32; 2]>>(),
                         );
                     }
-                    _ => {}
+                    gltf::Semantic::Tangents => {
+                        mesh.insert_attribute(
+                            Mesh::ATTRIBUTE_TANGENT,
+                            reader.read_tangents().unwrap().collect::<Vec<[f32; 4]>>(),
+                        );
+                    }
+                    _ => {
+                        println!("other semantic:{:?}", semantic)
+                    }
                 }
             }
             if let Some(indices) = reader.read_indices() {
@@ -64,12 +73,18 @@ pub fn load_gltf(path: &str) -> (Vec<Mesh>, Vec<StandardMaterial>) {
     // 加载纹理
     let mut materials = Vec::new();
     for material in document.materials() {
+        let mut standard_material = StandardMaterial::default();
         let pbr = material.pbr_metallic_roughness();
-        pbr.base_color_texture().map(|info| {
-            let mut material = StandardMaterial::default();
+
+        standard_material.base_color = Color::from_vec4(pbr.base_color_factor().into());
+        standard_material.perceptual_roughness = pbr.roughness_factor();
+        standard_material.metallic = pbr.metallic_factor();
+        standard_material.emissive = Color::from_vec3(material.emissive_factor().into());
+
+        standard_material.base_color_texture = pbr.base_color_texture().map(|info| {
             let source = info.texture().source();
             let image = images.get(source.index()).unwrap();
-            let texture = Texture {
+            Texture {
                 width: image.width,
                 height: image.height,
                 format: match image.format {
@@ -79,10 +94,57 @@ pub fn load_gltf(path: &str) -> (Vec<Mesh>, Vec<StandardMaterial>) {
                     _ => TextureFormat::Rgba8Unorm,
                 },
                 data: image.pixels.clone(),
-            };
-            material.base_color_texture = Some(texture);
-            materials.push(material);
+            }
         });
+
+        standard_material.metallic_roughness_texture = pbr.metallic_roughness_texture().map(|v| {
+            let source = v.texture().source();
+            let image = images.get(source.index()).unwrap();
+            Texture {
+                width: image.width,
+                height: image.height,
+                format: match image.format {
+                    image::Format::R8 => TextureFormat::R8Unorm,
+                    image::Format::R8G8B8 => TextureFormat::Rgb8Unorm,
+                    image::Format::R8G8B8A8 => TextureFormat::Rgba8Unorm,
+                    _ => TextureFormat::Rgba8Unorm,
+                },
+                data: image.pixels.clone(),
+            }
+        });
+
+        standard_material.normal_map_texture = material.normal_texture().map(|v| {
+            let source = v.texture().source();
+            let image = images.get(source.index()).unwrap();
+            Texture {
+                width: image.width,
+                height: image.height,
+                format: match image.format {
+                    image::Format::R8 => TextureFormat::R8Unorm,
+                    image::Format::R8G8B8 => TextureFormat::Rgb8Unorm,
+                    image::Format::R8G8B8A8 => TextureFormat::Rgba8Unorm,
+                    _ => TextureFormat::Rgba8Unorm,
+                },
+                data: image.pixels.clone(),
+            }
+        });
+
+        standard_material.emissive_texture = material.emissive_texture().map(|v| {
+            let source = v.texture().source();
+            let image = images.get(source.index()).unwrap();
+            Texture {
+                width: image.width,
+                height: image.height,
+                format: match image.format {
+                    image::Format::R8 => TextureFormat::R8Unorm,
+                    image::Format::R8G8B8 => TextureFormat::Rgb8Unorm,
+                    image::Format::R8G8B8A8 => TextureFormat::Rgba8Unorm,
+                    _ => TextureFormat::Rgba8Unorm,
+                },
+                data: image.pixels.clone(),
+            }
+        });
+        materials.push(standard_material);
     }
     (meshs, materials)
 }

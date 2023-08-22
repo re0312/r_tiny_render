@@ -298,6 +298,8 @@ impl StandardMaterial {
             BindType::Sampler(Sampler {}),
             BindType::Texture(self.metallic_roughness_texture.clone().unwrap_or_default()),
             BindType::Sampler(Sampler {}),
+            BindType::Texture(self.normal_map_texture.clone().unwrap_or_default()),
+            BindType::Sampler(Sampler {}),
         ]
     }
 }

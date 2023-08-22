@@ -1,39 +1,46 @@
+use crate::{
+    pbr_function::{apply_normal_mapping, pbr},
+    shader_function::{
+        construct_fragment_stage_mesh_input, construct_vertex_output, contruct_fragment_output,
+    },
+    shader_type::{MeshVertexOutput, PbrInput},
+    shader_uniform::{
+        MeshUniform, PointLightUniform, StandardMaterialFlags, StandardMaterialUniform, ViewUniform,
+    },
+};
 use math::{Vec2, Vec3, Vec4};
 use pipeline::{
     texture_sample, BindGroup, FragmentInput, FragmentOutput, Sampler, Texture, VertexInput,
     VertexOutput,
 };
 
-use crate::{
-    shader_function::{
-        construct_fragment_stage_mesh_input, construct_vertex_output, contruct_fragment_output,
-    },
-    shader_type::{MeshVertexOutput, PbrInput},
-    shader_uniform::{
-        PointLightUniform, StandardMaterialFlags, StandardMaterialUniform, ViewUniform,
-    },
-};
-
 pub fn vertex_main(vertex_input: VertexInput, bind_groups: &mut Vec<BindGroup>) -> VertexOutput {
     let in_position: Vec3 = vertex_input.location[0].into();
     let in_normal: Vec3 = vertex_input.location[1].into();
     let in_texture_uv: Vec2 = vertex_input.location[2].into();
+    // todo 切线接入
+    let in_tangent: Vec4 = vertex_input.location[3].into();
 
     let view_uniform: ViewUniform = std::mem::take(&mut bind_groups[0][0]).into();
     let light_uniform: PointLightUniform = std::mem::take(&mut bind_groups[0][1]).into();
     let materail_uniform: StandardMaterialUniform = std::mem::take(&mut bind_groups[1][0]).into();
     let texture: Texture = std::mem::take(&mut bind_groups[1][1]).into();
     let sampler: Sampler = std::mem::take(&mut bind_groups[1][2]).into();
+    let mesh_uniform: MeshUniform = std::mem::take(&mut bind_groups[2][0]).into();
 
-    println!("P{:?}", light_uniform);
+    // println!("P{:?}", light_uniform);
     let clip_position = view_uniform.view_proj * in_position.extend(1.);
-    let world_position = view_uniform.inverse_view * in_position.extend(1.);
-    let world_normal = view_uniform.inverse_view * in_normal.extend(1.);
+
+    let world_position = mesh_uniform.model * in_position.extend(1.);
+    // 法线世界坐标需要用模型变换的逆转置矩阵
+    let world_normal = (mesh_uniform.inverse_transpose_model.to_mat3() * in_normal).normalize();
+    let world_tangent = (mesh_uniform.model.to_mat3() * in_tangent.xyz()).extend(in_tangent.w);
     let out = MeshVertexOutput {
         position: clip_position,
         world_position,
         world_normal,
         uv: in_texture_uv,
+        world_tangent,
     };
 
     bind_groups[0][0] = view_uniform.into();
@@ -41,8 +48,8 @@ pub fn vertex_main(vertex_input: VertexInput, bind_groups: &mut Vec<BindGroup>) 
     bind_groups[1][0] = materail_uniform.into();
     bind_groups[1][1] = texture.into();
     bind_groups[1][2] = sampler.into();
+    bind_groups[2][0] = mesh_uniform.into();
 
-    let a = construct_vertex_output(&out);
     construct_vertex_output(&out)
 }
 
@@ -58,6 +65,8 @@ pub fn fragment_main(input: FragmentInput, bind_groups: &mut Vec<BindGroup>) -> 
     let emissive_sampler: Sampler = std::mem::take(&mut bind_groups[1][4]).into();
     let metallic_roughness_texture: Texture = std::mem::take(&mut bind_groups[1][5]).into();
     let metallic_roughness_sampler: Sampler = std::mem::take(&mut bind_groups[1][6]).into();
+    let normal_map_texture: Texture = std::mem::take(&mut bind_groups[1][7]).into();
+    let normal_map_sampler: Sampler = std::mem::take(&mut bind_groups[1][8]).into();
 
     let mut output_color = materail_uniform.base_color;
     output_color =
@@ -93,7 +102,15 @@ pub fn fragment_main(input: FragmentInput, bind_groups: &mut Vec<BindGroup>) -> 
     pbr_input.frag_coord = fragment_in.position;
     pbr_input.world_position = fragment_in.world_position;
     pbr_input.world_normal = fragment_in.world_normal;
-
+    pbr_input.V = (view_uniform.world_position - fragment_in.world_position.xyz()).normalize();
+    pbr_input.N = apply_normal_mapping(
+        fragment_in.world_normal,
+        fragment_in.world_tangent,
+        fragment_in.uv,
+        &normal_map_texture,
+        &normal_map_sampler,
+    );
+    let output_color = pbr(pbr_input);
     bind_groups[0][0] = view_uniform.into();
     bind_groups[0][1] = light_uniform.into();
     bind_groups[1][0] = materail_uniform.into();
@@ -103,5 +120,7 @@ pub fn fragment_main(input: FragmentInput, bind_groups: &mut Vec<BindGroup>) -> 
     bind_groups[1][4] = emissive_sampler.into();
     bind_groups[1][5] = metallic_roughness_texture.into();
     bind_groups[1][6] = metallic_roughness_sampler.into();
-    contruct_fragment_output(Vec4::ONE)
+    bind_groups[1][7] = normal_map_texture.into();
+    bind_groups[1][8] = normal_map_sampler.into();
+    contruct_fragment_output(output_color)
 }

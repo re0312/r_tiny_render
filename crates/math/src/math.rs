@@ -245,6 +245,16 @@ impl Mul<Vec3> for f32 {
         }
     }
 }
+impl Sub<f32> for Vec3 {
+    type Output = Vec3;
+    fn sub(self, rhs: f32) -> Self::Output {
+        Self {
+            x: self.x - rhs,
+            y: self.y - rhs,
+            z: self.z - rhs,
+        }
+    }
+}
 impl Neg for Vec3 {
     type Output = Self;
     fn neg(self) -> Self {
@@ -825,6 +835,9 @@ impl Mat4 {
         )
     }
 
+    pub fn to_mat3(&self) -> Mat3 {
+        Mat3::from_cols(self.x_axis.xyz(), self.y_axis.xyz(), self.z_axis.xyz())
+    }
     fn quat_to_axes(rotation: Quat) -> (Vec4, Vec4, Vec4) {
         let (x, y, z, w) = rotation.into();
         let x2 = x + x;

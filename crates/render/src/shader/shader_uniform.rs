@@ -86,8 +86,9 @@ impl Default for StandardMaterialUniform {
 }
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Default, bytemuck::Pod, bytemuck::Zeroable)]
-struct MeshUniform {
-    model: Mat4,
+pub struct MeshUniform {
+    pub model: Mat4,
+    pub inverse_transpose_model: Mat4,
 }
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Default, bytemuck::Pod, bytemuck::Zeroable)]
@@ -133,6 +134,20 @@ impl From<BindType> for StandardMaterialUniform {
 }
 impl From<StandardMaterialUniform> for BindType {
     fn from(value: StandardMaterialUniform) -> Self {
+        BindType::Uniform(bytemuck::cast_slice(&[value]).to_vec())
+    }
+}
+
+impl From<BindType> for MeshUniform {
+    fn from(value: BindType) -> Self {
+        match value {
+            BindType::Uniform(v) => unsafe { *(v.as_ptr() as *const MeshUniform) },
+            _ => panic!("wrong format corresponding"),
+        }
+    }
+}
+impl From<MeshUniform> for BindType {
+    fn from(value: MeshUniform) -> Self {
         BindType::Uniform(bytemuck::cast_slice(&[value]).to_vec())
     }
 }
