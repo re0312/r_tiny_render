@@ -205,6 +205,16 @@ impl Add<Vec3> for Vec3 {
         }
     }
 }
+impl Add<f32> for Vec3 {
+    type Output = Self;
+    fn add(self, other: f32) -> Self {
+        Self {
+            x: self.x + other,
+            y: self.y + other,
+            z: self.z + other,
+        }
+    }
+}
 impl Sub<Vec3> for Vec3 {
     type Output = Self;
     fn sub(self, rhs: Self) -> Self {

@@ -20,13 +20,22 @@ pub fn apply_normal_mapping(
 }
 
 pub fn pbr(input: PbrInput) -> Vec4 {
-    let mut output_color = input.materail.base_color;
-    let emissive = input.materail.emissive;
-    let metallic = input.materail.metallic;
-    let perceptual_roughness = input.materail.perceptual_roughness;
+    let mut output_color = input.material.base_color;
+    let emissive = input.material.emissive;
+    let metallic = input.material.metallic;
+    let perceptual_roughness = input.material.perceptual_roughness;
     let roughness = perceptual_roughness.clamp(0.089, 1.) * perceptual_roughness.clamp(0.089, 1.);
 
     let NdotV = input.N.dot(input.V).max(0.0001);
+
+    let reflectance = input.material.reflectance;
+    let F0 = output_color.xyz() * metallic + 0.16 * reflectance * reflectance * (1.0 - metallic);
+
+    // 散射强度和金属性负相关
+    let diffuse_color = output_color.xyz() * (1.0 - metallic);
+
+    // 计算反射方向
+    let R = -input.V - 2. * input.N.dot(input.V) * input.N;
 
     output_color
 }

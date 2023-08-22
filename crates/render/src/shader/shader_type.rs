@@ -10,7 +10,7 @@ pub struct MeshVertexOutput {
     pub world_tangent: Vec4,
 }
 pub struct PbrInput {
-    pub materail: StandardMaterialUniform,
+    pub material: StandardMaterialUniform,
     pub occlusion: Vec3,
     pub frag_coord: Vec4,
     pub world_position: Vec4,
@@ -22,7 +22,7 @@ pub struct PbrInput {
 impl Default for PbrInput {
     fn default() -> Self {
         Self {
-            materail: StandardMaterialUniform::default(),
+            material: StandardMaterialUniform::default(),
             occlusion: Vec3::ONE,
             frag_coord: Vec4 {
                 x: 0.,

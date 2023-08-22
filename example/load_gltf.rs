@@ -90,7 +90,7 @@ fn main() {
     let mut renderer = Renderer::new(desc);
     let vertex_buffer = mesh.get_vertex_buffer_data();
     let index_buffer = mesh.get_index_buffer_data();
-    let bind_group_material = material.get_materail_bind_group();
+    let bind_group_material = material.get_material_bind_group();
 
     println!("layout: {:?}", mesh.get_vertex_buffer_layout());
     println!("vertex count:{:?}", mesh.count_vertices());

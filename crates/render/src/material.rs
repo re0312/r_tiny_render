@@ -265,7 +265,7 @@ impl StandardMaterial {
     // var normal_map_sampler: sampler;
 
     // 返回material 的绑定组
-    pub fn get_materail_bind_group(&self) -> Vec<BindType> {
+    pub fn get_material_bind_group(&self) -> Vec<BindType> {
         let mut flags = StandardMaterialFlags::NONE;
         if self.base_color_texture.is_some() {
             flags |= StandardMaterialFlags::BASE_COLOR_TEXTURE;

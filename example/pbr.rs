@@ -12,15 +12,15 @@ use render::{
 };
 
 fn main() {
-    // let (meshs, materials) = load_gltf(
-    //     "C:\\Users\\27135\\Desktop\\project\\rust\\r_tinny_render\\assets\\box-textured\\BoxTextured.gltf",
-    // );
+    let (meshs, materials) = load_gltf(
+        "C:\\Users\\27135\\Desktop\\project\\rust\\r_tinny_render\\assets\\assistrobot\\scene.gltf",
+    );
     // let (meshs, materials) = load_gltf(
     //     "/home/10337136@zte.intra/Desktop/rust/r_tinny_render/assets/box-textured/BoxTextured.gltf",
     // );
-    let (meshs, materials) = load_gltf(
-        "/home/10337136@zte.intra/Desktop/rust/r_tinny_render/assets/assistrobot/scene.gltf",
-    );
+    // let (meshs, materials) = load_gltf(
+    //     "/home/10337136@zte.intra/Desktop/rust/r_tinny_render/assets/assistrobot/scene.gltf",
+    // );
 
     let mesh = &meshs[0];
     let material = &materials[0];
@@ -60,7 +60,7 @@ fn main() {
         camera.get_camera_uniform().into(),
         light.get_point_light_uniform().into(),
     ];
-    let bind_group_material = material.get_materail_bind_group();
+    let bind_group_material = material.get_material_bind_group();
     let bind_group_mesh = vec![mesh_uniform.into()];
 
     println!("layout: {:?}", mesh.get_vertex_buffer_layout());
