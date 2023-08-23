@@ -225,6 +225,16 @@ impl Sub<Vec3> for Vec3 {
         }
     }
 }
+impl Sub<Vec3> for f32 {
+    type Output = Vec3;
+    fn sub(self, rhs: Vec3) -> Vec3 {
+        Vec3 {
+            x: self - rhs.x,
+            y: self - rhs.y,
+            z: self - rhs.z,
+        }
+    }
+}
 impl Mul<f32> for Vec3 {
     type Output = Self;
     fn mul(self, rhs: f32) -> Self {

@@ -71,6 +71,7 @@ pub fn fragment_main(input: FragmentInput, bind_groups: &mut Vec<BindGroup>) -> 
     let mut output_color = material_uniform.base_color;
     output_color =
         texture_sample(&base_color_texture, &base_color_sampler, fragment_in.uv) * output_color;
+        
     let mut pbr_input = PbrInput::default();
 
     pbr_input.material.base_color = output_color;
@@ -98,7 +99,7 @@ pub fn fragment_main(input: FragmentInput, bind_groups: &mut Vec<BindGroup>) -> 
     pbr_input.material.emissive = emissive;
     pbr_input.material.metallic = metallic;
     pbr_input.material.perceptual_roughness = perceptual_roughness;
-    // pbr_input.occlusion 暂时不写遮蔽
+    // pbr_input.occlusion todo
     pbr_input.frag_coord = fragment_in.position;
     pbr_input.world_position = fragment_in.world_position;
     pbr_input.world_normal = fragment_in.world_normal;
@@ -110,7 +111,7 @@ pub fn fragment_main(input: FragmentInput, bind_groups: &mut Vec<BindGroup>) -> 
         &normal_map_texture,
         &normal_map_sampler,
     );
-    let output_color = pbr(pbr_input);
+    let output_color = pbr(pbr_input, &light_uniform);
     bind_groups[0][0] = view_uniform.into();
     bind_groups[0][1] = light_uniform.into();
     bind_groups[1][0] = material_uniform.into();

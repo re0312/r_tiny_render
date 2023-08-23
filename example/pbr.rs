@@ -12,15 +12,15 @@ use render::{
 };
 
 fn main() {
-    let (meshs, materials) = load_gltf(
-        "C:\\Users\\27135\\Desktop\\project\\rust\\r_tinny_render\\assets\\assistrobot\\scene.gltf",
-    );
+    // let (meshs, materials) = load_gltf(
+    //     "C:\\Users\\27135\\Desktop\\project\\rust\\r_tinny_render\\assets\\assistrobot\\scene.gltf",
+    // );
     // let (meshs, materials) = load_gltf(
     //     "/home/10337136@zte.intra/Desktop/rust/r_tinny_render/assets/box-textured/BoxTextured.gltf",
     // );
-    // let (meshs, materials) = load_gltf(
-    //     "/home/10337136@zte.intra/Desktop/rust/r_tinny_render/assets/assistrobot/scene.gltf",
-    // );
+    let (meshs, materials) = load_gltf(
+        "/home/10337136@zte.intra/Desktop/rust/r_tinny_render/assets/assistrobot/scene.gltf",
+    );
 
     let mesh = &meshs[0];
     let material = &materials[0];
@@ -46,10 +46,10 @@ fn main() {
     };
 
     let camera = Camera::default()
-        .with_transform(Transform::from_xyz(2., 2., 2.).looking_at(Vec3::ZERO, Vec3::Y));
+        .with_transform(Transform::from_xyz(0., 0., 20.).looking_at(Vec3::ZERO, Vec3::Y));
 
     let light = PointLight {
-        transform: Transform::from_xyz(0., 100., 0.),
+        transform: Transform::from_xyz(0., 10., 0.),
         ..Default::default()
     };
     let mut renderer = Renderer::new(desc);
