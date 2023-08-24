@@ -43,7 +43,7 @@ impl<'a> Renderer<'a> {
     pub fn new(desc: RendererDescriptor<'a>) -> Self {
         let pixel_count = desc.surface.height * desc.surface.width;
         Renderer {
-            frame_buffer: vec![255; pixel_count * desc.surface.format.size()],
+            frame_buffer: vec![0; pixel_count * desc.surface.format.size()],
             depth_buffer: vec![0.; pixel_count],
             bind_groups: vec![vec![]; 10],
             vertex_buffer: &[],
@@ -349,7 +349,7 @@ impl<'a> Renderer<'a> {
         self.frame_buffer[(width * y + x) * 4] = (color.x * 255.) as u8;
         self.frame_buffer[((width * y + x) * 4) + 1] = (color.y * 255.) as u8;
         self.frame_buffer[((width * y + x) * 4) + 2] = (color.z * 255.) as u8;
-        self.frame_buffer[((width * y + x) * 4) + 3] = (color.w * 255.) as u8;
+        self.frame_buffer[((width * y + x) * 4) + 3] = 255;
     }
 
     pub fn draw_line(&mut self, line: (Vec2, Vec2)) -> Option<()> {
