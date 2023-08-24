@@ -10,11 +10,12 @@ Todo:
 - [x] webgpu-like pipeline
 
 - [X] physical base render
-    [X] material
-    [ ] light
-      [X] point light
-      [ ] direct light
-    [ ] camera
+
+    - [X] material
+    - [ ] light
+      - [X] point light
+      - [ ] direct light
+    - [ ] camera
 
 - [ ] Shadow Mapping
 

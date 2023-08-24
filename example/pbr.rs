@@ -44,7 +44,7 @@ fn main() {
     };
 
     let camera = Camera::default()
-        .with_transform(Transform::from_xyz(0., 0., 16.).looking_at(Vec3::ZERO, Vec3::NEG_Y));
+        .with_transform(Transform::from_xyz(0., 5., 16.).looking_at(Vec3::ZERO, Vec3::NEG_Y));
 
     let light = PointLight {
         intensity: 1000.,
