@@ -30,9 +30,9 @@ fn fragment_main(input: FragmentInput, bind_groups: &mut Vec<BindGroup>) -> Frag
 fn main() {
     // 数组长度0..3是坐标，3..7是顶点颜色
     let vertex_buffer: Vec<[f32; 7]> = vec![
-        [0., -1., 1., 1., 0., 0., 1.],
-        [-0.5, 0., 1., 0., 1., 0., 1.],
-        [0.5, 0., 1., 0., 0., 1., 1.],
+        [0., -0.5, 1., 1., 0., 0., 1.],
+        [-0.5, 0.5, 1., 0., 1., 0., 1.],
+        [0.5, 0.5, 1., 0., 0., 1., 1.],
     ];
     let desc = RendererDescriptor {
         surface: RenderSurface {
