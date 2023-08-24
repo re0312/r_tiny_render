@@ -58,12 +58,12 @@ fn fragment_main(input: FragmentInput, bind_groups: &mut Vec<BindGroup>) -> Frag
 }
 
 fn main() {
-    let (meshs, materials) = load_gltf(
-        "C:\\Users\\27135\\Desktop\\project\\rust\\r_tinny_render\\assets\\box-textured\\BoxTextured.gltf",
-    );
     // let (meshs, materials) = load_gltf(
-    //     "/home/10337136@zte.intra/Desktop/rust/r_tinny_render/assets/box-textured/BoxTextured.gltf",
+    //     "C:\\Users\\27135\\Desktop\\project\\rust\\r_tinny_render\\assets\\box-textured\\BoxTextured.gltf",
     // );
+    let (meshs, materials) = load_gltf(
+        "/home/10337136@zte.intra/Desktop/rust/r_tinny_render/assets/box-textured/BoxTextured.gltf",
+    );
 
     let mesh = &meshs[0];
     let material = &materials[0];
@@ -102,7 +102,7 @@ fn main() {
     renderer.set_bind_group(1, bind_group_material);
     renderer.draw_indexed(0..mesh.count_indices() as u32);
     image::save_buffer(
-        "image_mesh.png",
+        "image_pbr.png",
         &renderer.frame_buffer,
         1000,
         1000,

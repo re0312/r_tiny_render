@@ -180,7 +180,7 @@ impl<'a> Renderer<'a> {
             let primitive = [
                 &vertex_shader_outputs[vertices[i * 3] as usize],
                 &vertex_shader_outputs[vertices[i * 3 + 1] as usize],
-                &vertex_shader_outputs[vertices[i + 3 + 2] as usize],
+                &vertex_shader_outputs[vertices[i * 3 + 2] as usize],
             ];
             // 图元裁剪
             // 顶点着色器会有输出 position(x,y,z,w)，我们在这里进行裁剪（其实就是齐次空间的视锥裁剪）
@@ -246,11 +246,11 @@ impl<'a> Renderer<'a> {
             // cw 顺时针标准 ，area > 0 说明是正面，可以用来作为背面剔除的判断条件
             let area: f32 = calculate_polygon_area(&frame_buffer_coordinates);
 
+            // 背面剔除
             // if area < 0. {
             //     continue;
             // }
 
-            // println!("{:?}",frame_buffer_coordinates);
             // aabb 包围盒，左上 右下
             let aabb = calculate_polygon_aabb(&frame_buffer_coordinates);
 

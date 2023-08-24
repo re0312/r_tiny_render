@@ -23,18 +23,16 @@ fn fragment_main(input: FragmentInput, bind_groups: &mut Vec<BindGroup>) -> Frag
     let in_color: Vec4 = input.location[0].into();
     FragmentOutput {
         frag_depth: None,
-        sample_mask: 2,
+        sample_mask: 0,
         location: vec![ShaderType::Vec4(in_color)],
     }
 }
 fn main() {
+    // 数组长度0..3是坐标，3..7是顶点颜色
     let vertex_buffer: Vec<[f32; 7]> = vec![
-        [0., 1., 0.9, 0., 1., 0., 1.],
-        [-0.7, 0., 0.9, 0., 1., 0., 1.],
-        [0.5, 0., 0.9, 0., 1., 0., 1.],
-        [0., 1., 0., 1., 0., 0., 1.],
-        [-0.5, 0., 0., 1., 0., 0., 1.],
-        [0.5, 0., 0., 1., 0., 0., 1.],
+        [0., -1., 1., 1., 0., 0., 1.],
+        [-0.5, 0., 1., 0., 1., 0., 1.],
+        [0.5, 0., 1., 0., 0., 1., 1.],
     ];
     let desc = RendererDescriptor {
         surface: RenderSurface {
@@ -52,9 +50,9 @@ fn main() {
     };
     let mut renderer = Renderer::new(desc);
     renderer.set_vertex_buffer(bytemuck::cast_slice(&vertex_buffer));
-    renderer.draw(0..6);
+    renderer.draw(0..vertex_buffer.len() as u32);
     image::save_buffer(
-        "image_texture.png",
+        "image_triangle.png",
         &renderer.frame_buffer,
         1000,
         1000,

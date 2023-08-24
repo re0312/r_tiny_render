@@ -1,13 +1,11 @@
 use loader::load_gltf;
-use math::{Vec2, Vec3, Vec4};
+use math::Vec3;
 use pipeline::{
-    texture_sample, BindGroup, BindType, FragmentInput, FragmentOutput, FragmentState,
-    RenderSurface, Renderer, RendererDescriptor, Sampler, ShaderType, Texture, TextureFormat,
-    VertexInput, VertexOutput, VertexState,
+    FragmentState, RenderSurface, Renderer, RendererDescriptor, TextureFormat, VertexState,
 };
 use render::{
-    pbr_shder::{fragment_main, vertex_main},
-    shader_uniform::{MeshUniform, ViewUniform},
+    pbr_shder::{pbr_fragment_main, pbr_vertex_main},
+    shader_uniform::MeshUniform,
     Camera, PointLight, Transform,
 };
 
@@ -33,23 +31,24 @@ fn main() {
     let desc = RendererDescriptor {
         surface: RenderSurface {
             format: TextureFormat::Rgba8Unorm,
-            height: 1000,
-            width: 1000,
+            height: 2000,
+            width: 2000,
         },
         vertex: VertexState {
-            shader: vertex_main,
+            shader: pbr_vertex_main,
             layout: &mesh.get_vertex_buffer_layout(),
         },
         fragment: FragmentState {
-            shader: fragment_main,
+            shader: pbr_fragment_main,
         },
     };
 
     let camera = Camera::default()
-        .with_transform(Transform::from_xyz(0., 0., 20.).looking_at(Vec3::ZERO, Vec3::Y));
+        .with_transform(Transform::from_xyz(0., 0., 20.).looking_at(Vec3::ZERO, Vec3::NEG_Y));
 
     let light = PointLight {
-        transform: Transform::from_xyz(0., 10., 0.),
+        intensity: 1000.,
+        transform: Transform::from_xyz(10., 10., 10.),
         ..Default::default()
     };
     let mut renderer = Renderer::new(desc);
@@ -74,10 +73,10 @@ fn main() {
     renderer.set_bind_group(2, bind_group_mesh);
     renderer.draw_indexed(0..mesh.count_indices() as u32);
     image::save_buffer(
-        "image_shading.png",
+        "image_pbr.png",
         &renderer.frame_buffer,
-        1000,
-        1000,
+        2000,
+        2000,
         image::ColorType::Rgba8,
     )
     .unwrap();

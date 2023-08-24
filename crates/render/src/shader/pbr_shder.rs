@@ -14,7 +14,7 @@ use pipeline::{
     VertexOutput,
 };
 
-pub fn vertex_main(vertex_input: VertexInput, bind_groups: &mut Vec<BindGroup>) -> VertexOutput {
+pub fn pbr_vertex_main(vertex_input: VertexInput, bind_groups: &mut Vec<BindGroup>) -> VertexOutput {
     let in_position: Vec3 = vertex_input.location[0].into();
     let in_normal: Vec3 = vertex_input.location[1].into();
     let in_texture_uv: Vec2 = vertex_input.location[2].into();
@@ -53,7 +53,7 @@ pub fn vertex_main(vertex_input: VertexInput, bind_groups: &mut Vec<BindGroup>) 
     construct_vertex_output(&out)
 }
 
-pub fn fragment_main(input: FragmentInput, bind_groups: &mut Vec<BindGroup>) -> FragmentOutput {
+pub fn pbr_fragment_main(input: FragmentInput, bind_groups: &mut Vec<BindGroup>) -> FragmentOutput {
     let fragment_in = construct_fragment_stage_mesh_input(&input);
 
     let view_uniform: ViewUniform = std::mem::take(&mut bind_groups[0][0]).into();
@@ -71,7 +71,7 @@ pub fn fragment_main(input: FragmentInput, bind_groups: &mut Vec<BindGroup>) -> 
     let mut output_color = material_uniform.base_color;
     output_color =
         texture_sample(&base_color_texture, &base_color_sampler, fragment_in.uv) * output_color;
-        
+
     let mut pbr_input = PbrInput::default();
 
     pbr_input.material.base_color = output_color;
