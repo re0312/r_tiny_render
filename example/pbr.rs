@@ -48,7 +48,8 @@ fn main() {
 
     let light = PointLight {
         intensity: 1000.,
-        transform: Transform::from_xyz(10., 10., 10.),
+        range: 30.,
+        transform: Transform::from_xyz(0., 0., 15.),
         ..Default::default()
     };
     let mut renderer = Renderer::new(desc);

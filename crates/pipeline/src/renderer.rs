@@ -43,7 +43,7 @@ impl<'a> Renderer<'a> {
     pub fn new(desc: RendererDescriptor<'a>) -> Self {
         let pixel_count = desc.surface.height * desc.surface.width;
         Renderer {
-            frame_buffer: vec![0; pixel_count * desc.surface.format.size()],
+            frame_buffer: vec![255; pixel_count * desc.surface.format.size()],
             depth_buffer: vec![0.; pixel_count],
             bind_groups: vec![vec![]; 10],
             vertex_buffer: &[],
